@@ -159,7 +159,7 @@ func getIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	iconHash := iconCache.Get(user.ID)
 
@@ -179,7 +179,7 @@ func getIconHandler(c echo.Context) error {
 		}
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	newIconHash := sha256.Sum256(image)
 	iconCache.Set(user.ID, fmt.Sprintf("%x", newIconHash))
@@ -261,7 +261,7 @@ func getMeHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	user, err := fillUserResponse(ctx, userModel)
 	if err != nil {
@@ -303,7 +303,7 @@ func registerHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user: "+err.Error())
 	}
-	mu.Unlock()
+	mu.RUnlock()
 
 	userID, err := result.LastInsertId()
 	if err != nil {
@@ -350,7 +350,7 @@ func loginHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	err = bcrypt.CompareHashAndPassword([]byte(userModel.HashedPassword), []byte(req.Password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
@@ -407,7 +407,7 @@ func getUserHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	iconHash := iconCache.Get(userModel.ID)
 

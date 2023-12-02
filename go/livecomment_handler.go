@@ -123,7 +123,7 @@ func getLivecommentsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	livecomments, err := fillLivecommentResponses(ctx, livecommentModels)
 	if err != nil {
@@ -441,7 +441,7 @@ func fillLivecommentResponses(ctx context.Context, livecommentModels []Livecomme
 		}
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	livestreamIds := []int64{}
 	for _, livecommentModel := range livecommentModels {
@@ -460,7 +460,7 @@ func fillLivecommentResponses(ctx context.Context, livecommentModels []Livecomme
 		return []Livecomment{}, err
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	livestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
@@ -500,7 +500,7 @@ func fillLivecommentResponse(ctx context.Context, livecommentModel LivecommentMo
 		return Livecomment{}, err
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	mu.RLock()
 
@@ -513,7 +513,7 @@ func fillLivecommentResponse(ctx context.Context, livecommentModel LivecommentMo
 		return Livecomment{}, err
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	livecomment := Livecomment{
 		ID:         livecommentModel.ID,
@@ -537,7 +537,7 @@ func fillLivecommentReportResponse(ctx context.Context, reportModel LivecommentR
 	if err != nil {
 		return LivecommentReport{}, err
 	}
-	mu.Unlock()
+	mu.RUnlock()
 
 	mu.RLock()
 
@@ -550,7 +550,7 @@ func fillLivecommentReportResponse(ctx context.Context, reportModel LivecommentR
 		return LivecommentReport{}, err
 	}
 
-	mu.Unlock()
+	mu.RUnlock()
 
 	report := LivecommentReport{
 		ID:          reportModel.ID,
