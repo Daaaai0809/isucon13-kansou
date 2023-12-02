@@ -573,14 +573,19 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 		TagName      string `db:"tag_name"`
 	}
 	tags := map[int64][]Tag{}
-	query := `
+	q := `
 		SELECT lt.livestream_id, t.id as tag_id, t.name as tag_name
 		FROM tags t
 		INNER JOIN livestream_tags lt ON lt.tag_id = t.id
 		WHERE lt.livestream_id IN (?)
 	`
 
-	if err := tx.SelectContext(ctx, &returns, query, livestreamIds); err != nil {
+	query, params, err := sqlx.In(q, livestreamIds)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.SelectContext(ctx, &returns, query, params...); err != nil {
 		return nil, err
 	}
 
