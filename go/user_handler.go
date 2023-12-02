@@ -110,8 +110,36 @@ func (c *InMemCache) Clear() {
 	c.ImageHashes = make(map[int64]string)
 }
 
+type InMemThemeCache struct {
+	Theme map[int64]bool
+}
+
+func (c *InMemThemeCache) Get(key int64) (bool) {
+	theme, ok := c.Theme[key]
+	if !ok {
+		return false
+	}
+	return theme
+}
+
+func (c *InMemThemeCache) Set(key int64, value bool) {
+	c.Theme[key] = value
+}
+
+func (c *InMemThemeCache) Delete(key int64) {
+	delete(c.Theme, key)
+}
+
+func (c *InMemThemeCache) Clear() {
+	c.Theme = make(map[int64]bool)
+}
+
 var iconCache = InMemCache{
 	ImageHashes: make(map[int64]string),
+}
+
+var themeCache = InMemThemeCache{
+	Theme: make(map[int64]bool),
 }
 
 func getIconHandler(c echo.Context) error {
@@ -290,13 +318,9 @@ func registerHandler(c echo.Context) error {
 
 	userModel.ID = userID
 
-	themeModel := ThemeModel{
-		UserID:   userID,
-		DarkMode: req.Theme.DarkMode,
-	}
-	if _, err := tx.NamedExecContext(ctx, "INSERT INTO themes (user_id, dark_mode) VALUES(:user_id, :dark_mode)", themeModel); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user theme: "+err.Error())
-	}
+	// themeをcacheに入れる
+	themeCache.Set(userID, req.Theme.DarkMode)
+
 
 	if out, err := exec.Command("pdnsutil", "add-record", "u.isucon.dev", req.Name, "A", "0", powerDNSSubdomainAddress).CombinedOutput(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
@@ -448,10 +472,12 @@ func verifyUserSession(c echo.Context) error {
 }
 
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
-	themeModel := ThemeModel{}
-	if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
-		return User{}, err
-	}
+	// themeModel := ThemeModel{}
+	// if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
+	// 	return User{}, err
+	// }
+
+	themeCache.Get(userModel.ID)
 
 	iconHash := iconCache.Get(userModel.ID)
 
@@ -461,8 +487,8 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		DisplayName: userModel.DisplayName,
 		Description: userModel.Description,
 		Theme: Theme{
-			ID:       themeModel.ID,
-			DarkMode: themeModel.DarkMode,
+			ID:       userModel.ID,
+			DarkMode: themeCache.Get(userModel.ID),
 		},
 		IconHash: iconHash,
 	}
