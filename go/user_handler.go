@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ const (
 	defaultUserIDKey         = "USERID"
 	defaultUsernameKey       = "USERNAME"
 	bcryptDefaultCost        = bcrypt.MinCost
+	NOIMAGE_HASH = "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0"
 )
 
 var fallbackImage = "../img/NoImage.jpg"
@@ -88,9 +90,12 @@ type InMemCache struct {
 	ImageHashes map[int64]string
 }
 
-func (c *InMemCache) Get(key int64) (string, bool) {
+func (c *InMemCache) Get(key int64) (string) {
 	hash, ok := c.ImageHashes[key]
-	return hash, ok
+	if !ok {
+		return NOIMAGE_HASH
+	}
+	return hash
 }
 
 func (c *InMemCache) Set(key int64, value string) {
@@ -104,8 +109,6 @@ func (c *InMemCache) Delete(key int64) {
 var iconCache = InMemCache{
 	ImageHashes: make(map[int64]string),
 }
-
-const NOIMAGE_HASH = "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0"
 
 func getIconHandler(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -216,7 +219,14 @@ func getMeHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	user, err := fillUserResponse(ctx, tx, userModel)
+	iconHash := iconCache.Get(userModel.ID)
+
+	match, ok := c.Request().Header["If-None-Match"]
+	if ok && strings.Contains(match[0], iconHash) {
+		return c.NoContent(http.StatusNotModified)
+	}
+
+	user, err := fillUserResponse(ctx, tx, userModel, iconHash)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
@@ -285,7 +295,14 @@ func registerHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
 	}
 
-	user, err := fillUserResponse(ctx, tx, userModel)
+	iconHash := iconCache.Get(userModel.ID)
+
+	match, ok := c.Request().Header["If-None-Match"]
+	if ok && strings.Contains(match[0], iconHash) {
+		return c.NoContent(http.StatusNotModified)
+	}
+
+	user, err := fillUserResponse(ctx, tx, userModel, iconHash)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
@@ -387,7 +404,14 @@ func getUserHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	user, err := fillUserResponse(ctx, tx, userModel)
+	iconHash := iconCache.Get(userModel.ID)
+
+	match, ok := c.Request().Header["If-None-Match"]
+	if ok && strings.Contains(match[0], iconHash) {
+		return c.NoContent(http.StatusNotModified)
+	}
+
+	user, err := fillUserResponse(ctx, tx, userModel, iconHash)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
@@ -423,28 +447,10 @@ func verifyUserSession(c echo.Context) error {
 	return nil
 }
 
-func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
+func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel, iconHash string) (User, error) {
 	themeModel := ThemeModel{}
 	if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
 		return User{}, err
-	}
-
-	// var image []byte
-	// if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
-	// 	if !errors.Is(err, sql.ErrNoRows) {
-	// 		return User{}, err
-	// 	}
-	// 	image, err = os.ReadFile(fallbackImage)
-	// 	if err != nil {
-	// 		return User{}, err
-	// 	}
-	// }
-
-	iconHash, ok := iconCache.Get(userModel.ID)
-	if ok {
-		iconHash = fmt.Sprintf("%x", iconHash)
-	} else {
-		iconHash = NOIMAGE_HASH
 	}
 
 	user := User{
@@ -456,7 +462,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 			ID:       themeModel.ID,
 			DarkMode: themeModel.DarkMode,
 		},
-		IconHash: fmt.Sprintf("%x", iconHash),
+		IconHash: iconHash,
 	}
 
 	return user, nil
