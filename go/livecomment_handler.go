@@ -451,7 +451,7 @@ func moderateHandler(c echo.Context) error {
 func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentResponse LivecommentResponse) ([]Livecomment, error) {
 	livecomments := make([]Livecomment, len(liveCommentResponse))
 
-	var tags map[int64][]Tag
+	var tags map[int64][]Tag = make(map[int64][]Tag)
 	for i := range liveCommentResponse {
 		_tags := []Tag{}
 		if _, ok := tags[liveCommentResponse[i].LivestreamID]; !ok {
