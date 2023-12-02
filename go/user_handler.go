@@ -106,6 +106,10 @@ func (c *InMemCache) Delete(key int64) {
 	delete(c.ImageHashes, key)
 }
 
+func (c *InMemCache) Clear() {
+	c.ImageHashes = make(map[int64]string)
+}
+
 var iconCache = InMemCache{
 	ImageHashes: make(map[int64]string),
 }
