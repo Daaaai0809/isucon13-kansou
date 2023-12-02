@@ -98,7 +98,7 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	db.Preparex("")
+	db.Preparex("PREPARE;")
 
 	db.SetMaxOpenConns(100)
 
