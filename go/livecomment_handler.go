@@ -435,6 +435,10 @@ func moderateHandler(c echo.Context) error {
 }
 
 func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModels []LivecommentModel) ([]Livecomment, error) {
+	if len(livecommentModels) == 0 {
+		return []Livecomment{}, nil
+	}
+
 	commentOwnerIds := []int64{}
 	for _, livecommentModel := range livecommentModels {
 		commentOwnerIds = append(commentOwnerIds, livecommentModel.UserID)
