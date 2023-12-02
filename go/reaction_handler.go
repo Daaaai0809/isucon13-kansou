@@ -179,7 +179,7 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 		livestreamIds[i] = reactionModels[i].LivestreamID
 	}
 
-	userModels := []UserModel{}
+	userModels := []*UserModel{}
 	query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
 	if err != nil {
 		return nil, err
@@ -188,7 +188,7 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 		return nil, err
 	}
 
-	livestreamModels := []LivestreamModel{}
+	livestreamModels := []*LivestreamModel{}
 	query, params, err = sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds)
 	if err != nil {
 		return nil, err
@@ -198,22 +198,31 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 		return nil, err
 	}
 
-	users := make(map[int64]User)
+	_userModels := []UserModel{}
 	for i := range userModels {
-		user, err := fillUserResponse(ctx, userModels[i])
-		if err != nil {
-			return nil, err
-		}
-		users[user.ID] = user
+		_userModels = append(_userModels, *userModels[i])
+	}
+
+	users := make(map[int64]User)
+
+	filledUsers, err := fillUserResponseBulk(ctx, tx, _userModels)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range filledUsers {
+		users[filledUsers[i].ID] = filledUsers[i]
 	}
 
 	livestreams := make(map[int64]Livestream)
-	for i := range livestreamModels {
-		livestream, err := fillLivestreamResponse(ctx, tx, livestreamModels[i])
-		if err != nil {
-			return nil, err
-		}
-		livestreams[livestream.ID] = livestream
+	
+	filledLivestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range filledLivestreams {
+		livestreams[filledLivestreams[i].ID] = filledLivestreams[i]
 	}
 
 	reactions := make([]Reaction, 0)
