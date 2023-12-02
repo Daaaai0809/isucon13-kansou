@@ -431,8 +431,8 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentRespo
 	livecomments := make([]Livecomment, len(liveCommentResponse))
 
 	for i := range liveCommentResponse {
-		user, _ := fillUserResponse(ctx, liveCommentResponse[i].User)
-		livestreamOwner, _ := fillUserResponse(ctx, liveCommentResponse[i].LiveStreamOwner)
+		user, _ := fillUserResponse(ctx, *liveCommentResponse[i].User)
+		livestreamOwner, _ := fillUserResponse(ctx, *liveCommentResponse[i].LiveStreamOwner)
 
 		tags := make([]Tag, len(liveCommentResponse[i].LiveStreamTags))
 		for j := range liveCommentResponse[i].LiveStreamTags {
