@@ -115,7 +115,7 @@ func getLivecommentsHandler(c echo.Context) error {
 	var livecommentResponse LivecommentResponse
 
 	if err := tx.SelectContext(ctx, &livecommentResponse, query, livestreamID); err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "failed to get livecomments")
+		return echo.NewHTTPError(http.StatusNotFound, err)
 	}
 
 	livecomments, err := fillLivecommentResponses(ctx, tx, livecommentResponse)
