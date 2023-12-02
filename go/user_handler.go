@@ -129,6 +129,13 @@ func getIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
+	iconHash := iconCache.Get(user.ID)
+	
+	match, ok := c.Request().Header["If-None-Match"]
+	if ok && strings.Contains(match[0], iconHash) {
+		return c.NoContent(http.StatusNotModified)
+	}
+
 	var image []byte
 	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", user.ID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -219,14 +226,7 @@ func getMeHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	iconHash := iconCache.Get(userModel.ID)
-
-	match, ok := c.Request().Header["If-None-Match"]
-	if ok && strings.Contains(match[0], iconHash) {
-		return c.NoContent(http.StatusNotModified)
-	}
-
-	user, err := fillUserResponse(ctx, tx, userModel, iconHash)
+	user, err := fillUserResponse(ctx, tx, userModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
@@ -295,14 +295,7 @@ func registerHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
 	}
 
-	iconHash := iconCache.Get(userModel.ID)
-
-	match, ok := c.Request().Header["If-None-Match"]
-	if ok && strings.Contains(match[0], iconHash) {
-		return c.NoContent(http.StatusNotModified)
-	}
-
-	user, err := fillUserResponse(ctx, tx, userModel, iconHash)
+	user, err := fillUserResponse(ctx, tx, userModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
@@ -411,7 +404,7 @@ func getUserHandler(c echo.Context) error {
 		return c.NoContent(http.StatusNotModified)
 	}
 
-	user, err := fillUserResponse(ctx, tx, userModel, iconHash)
+	user, err := fillUserResponse(ctx, tx, userModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
@@ -447,11 +440,13 @@ func verifyUserSession(c echo.Context) error {
 	return nil
 }
 
-func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel, iconHash string) (User, error) {
+func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
 	themeModel := ThemeModel{}
 	if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
 		return User{}, err
 	}
+
+	iconHash := iconCache.Get(userModel.ID)
 
 	user := User{
 		ID:          userModel.ID,
