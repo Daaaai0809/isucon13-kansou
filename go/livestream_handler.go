@@ -555,10 +555,6 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 }
 
 func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
-	if len(livestreamModels) == 0 {
-		return []Livestream{}, nil
-	}
-
 	ownerIds := make([]int64, 0)
 	for i := range livestreamModels {
 		ownerIds = append(ownerIds, livestreamModels[i].UserID)
@@ -593,33 +589,36 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 		livestreamIds = append(livestreamIds, livestreamModels[i].ID)
 	}
 
-	var returns []*struct {
-		LivestreamID int64  `db:"livestream_id"`
-		TagID        int64  `db:"tag_id"`
-		TagName      string `db:"tag_name"`
-	}
 	tags := map[int64][]Tag{}
-	q := `
-		SELECT lt.livestream_id, t.id as tag_id, t.name as tag_name
-		FROM tags t
-		INNER JOIN livestream_tags lt ON lt.tag_id = t.id
-		WHERE lt.livestream_id IN (?)
-	`
 
-	query, params, err := sqlx.In(q, livestreamIds)
-	if err != nil {
-		return nil, err
-	}
+	if len(livestreamIds) > 0 {
+		var returns []*struct {
+			LivestreamID int64  `db:"livestream_id"`
+			TagID        int64  `db:"tag_id"`
+			TagName      string `db:"tag_name"`
+		}
+		q := `
+			SELECT lt.livestream_id, t.id as tag_id, t.name as tag_name
+			FROM tags t
+			INNER JOIN livestream_tags lt ON lt.tag_id = t.id
+			WHERE lt.livestream_id IN (?)
+		`
 
-	if err := tx.SelectContext(ctx, &returns, query, params...); err != nil {
-		return nil, err
-	}
+		query, params, err := sqlx.In(q, livestreamIds)
+		if err != nil {
+			return nil, err
+		}
 
-	for _, ret := range returns {
-		tags[ret.LivestreamID] = append(tags[ret.LivestreamID], Tag{
-			ID:   ret.TagID,
-			Name: ret.TagName,
-		})
+		if err := tx.SelectContext(ctx, &returns, query, params...); err != nil {
+			return nil, err
+		}
+
+		for _, ret := range returns {
+			tags[ret.LivestreamID] = append(tags[ret.LivestreamID], Tag{
+				ID:   ret.TagID,
+				Name: ret.TagName,
+			})
+		}
 	}
 
 	livestreams := make([]Livestream, len(livestreamModels))
