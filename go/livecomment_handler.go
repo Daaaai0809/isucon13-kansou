@@ -98,7 +98,8 @@ func getLivecommentsHandler(c echo.Context) error {
 		INNER JOIN users u ON lc.user_id = u.id
 		INNER JOIN livestreams AS ls ON lc.livestream_id = ls.id
 		INNER JOIN users AS u2 ON ls.user_id = u2.id
-		INNER JOIN tags AS t ON ls.id = t.livestream_id
+		INNER JOIN livestream_tags AS lt ON ls.id = lt.livestream_id
+		INNER JOIN tags AS t ON lt.tag_id = t.id
 		WHERE lc.livestream_id = ?
 		ORDER BY created_at DESC
 	`
