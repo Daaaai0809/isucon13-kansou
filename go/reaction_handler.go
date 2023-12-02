@@ -215,7 +215,7 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 	}
 
 	livestreams := make(map[int64]Livestream)
-	
+
 	filledLivestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
 		return nil, err
@@ -234,7 +234,7 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 			Livestream: livestreams[reactionModels[i].LivestreamID],
 			CreatedAt:  reactionModels[i].CreatedAt,
 		}
-		
+
 		reactions = append(reactions, reaction)
 	}
 
