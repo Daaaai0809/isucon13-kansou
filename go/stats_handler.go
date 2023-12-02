@@ -102,8 +102,20 @@ func getUserStatisticsHandler(c echo.Context) error {
 	LEFT JOIN tips l2 ON l2.livestream_id = l.id
 	GROUP BY u.id
 	`
-	if err := tx.SelectContext(ctx, &ranking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var entries []struct {
+		Username string
+		Score    int64
+	}
+
+	if err := tx.SelectContext(ctx, &entries, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get ranking: "+err.Error())
+	}
+
+	for _, entry := range entries {
+		ranking = append(ranking, UserRankingEntry{
+			Username: entry.Username,
+			Score:    entry.Score,
+		})
 	}
 
 	sort.Sort(ranking)
@@ -201,8 +213,21 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	LEFT JOIN tips l2 ON l2.livestream_id = l.id
 	GROUP BY l.id
 	`
-	if err := tx.SelectContext(ctx, &ranking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
+
+	var entries []struct {
+		LivestreamID int64
+		Score        int64
+	}
+
+	if err := tx.SelectContext(ctx, &entries, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get ranking: "+err.Error())
+	}
+
+	for _, entry := range entries {
+		ranking = append(ranking, LivestreamRankingEntry{
+			LivestreamID: entry.LivestreamID,
+			Score:        entry.Score,
+		})
 	}
 
 	sort.Sort(ranking)
