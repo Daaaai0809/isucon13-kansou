@@ -66,11 +66,27 @@ type NGWord struct {
 }
 
 type LivecommentResponse []*struct {
-	User    		*UserModel `db:"comment_owner"`
-	Livecomment 	*LivecommentModel `db:"livecomment"`
-	LiveStream 		*LivestreamModel `db:"livestream"`
-	LiveStreamOwner *UserModel `db:"stream_owner"`
-	LiveStreamTags 	[]*TagModel `db:"livestream_tags"`
+	CommentOwnerID      int64  `db:"comment_owner_id"`
+	CommentOwnerName    string `db:"comment_owner_name"`
+	CommentOwnerDisplay string `db:"comment_owner_display_name"`
+	CommentOwnerDesc    string `db:"comment_owner_description"`
+	LivecommentID       int64  `db:"livecomment_id"`
+	LivecommentComment  string `db:"livecomment_comment"`
+	LivecommentTip      int64  `db:"livecomment_tip"`
+	LivecommentCreatedAt int64 `db:"livecomment_created_at"`
+	LivestreamID        int64  `db:"livestream_id"`
+	LivestreamTitle     string `db:"livestream_title"`
+	LivestreamDescription string `db:"livestream_description"`
+	LivestreamPlaylistURL string `db:"livestream_playlist_url"`
+	LivestreamThumbnailURL string `db:"livestream_thumbnail_url"`
+	LivestreamStartAt   int64  `db:"livestream_start_at"`
+	LivestreamEndAt     int64  `db:"livestream_end_at"`
+	StreamOwnerID       int64  `db:"stream_owner_id"`
+	StreamOwnerName     string `db:"stream_owner_name"`
+	StreamOwnerDisplay  string `db:"stream_owner_display_name"`
+	StreamOwnerDesc     string `db:"stream_owner_description"`
+	TagID               int64  `db:"tag_id"`
+	TagName             string `db:"tag_name"`
 }
 
 func getLivecommentsHandler(c echo.Context) error {
@@ -93,7 +109,12 @@ func getLivecommentsHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	query := `
-		SELECT u.*, lc.*, l.*, u2.*, t.*
+		SELECT 
+			u.id AS comment_owner_id, u.name AS comment_owner_name, u.display_name AS comment_owner_display_name, u.description AS comment_owner_description,
+			lc.id AS livecomment_id, lc.comment AS livecomment_comment, lc.tip AS livecomment_tip, lc.created_at AS livecomment_created_at,
+			l.id AS livestream_id, l.title AS livestream_title, l.description AS livestream_description, l.playlist_url AS livestream_playlist_url, l.thumbnail_url AS livestream_thumbnail_url, l.start_at AS livestream_start_at, l.end_at AS livestream_end_at,
+			u2.id AS stream_owner_id, u2.name AS stream_owner_name, u2.display_name AS stream_owner_display_name, u2.description AS stream_owner_description,
+			t.id AS tag_id, t.name AS tag_name
 		FROM livecomments AS lc
 		LEFT JOIN users AS u ON lc.user_id = u.id
 		LEFT JOIN livestreams AS l ON lc.livestream_id = l.id
@@ -114,7 +135,7 @@ func getLivecommentsHandler(c echo.Context) error {
 
 	var livecommentResponse LivecommentResponse
 
-	if err := tx.SelectContext(ctx, livecommentResponse, query, livestreamID); err != nil {
+	if err := tx.SelectContext(ctx, &livecommentResponse, query, livestreamID); err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, err)
 	}
 
@@ -430,38 +451,69 @@ func moderateHandler(c echo.Context) error {
 func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentResponse LivecommentResponse) ([]Livecomment, error) {
 	livecomments := make([]Livecomment, len(liveCommentResponse))
 
+	var tags map[int64][]Tag
 	for i := range liveCommentResponse {
-		user, _ := fillUserResponse(ctx, *liveCommentResponse[i].User)
-		livestreamOwner, _ := fillUserResponse(ctx, *liveCommentResponse[i].LiveStreamOwner)
+		_tags := []Tag{}
+		if _, ok := tags[liveCommentResponse[i].LivestreamID]; !ok {
+			_tags = append(_tags, Tag{
+				ID:   liveCommentResponse[i].TagID,
+				Name: liveCommentResponse[i].TagName,
+			})
+			tags[liveCommentResponse[i].LivestreamID] = _tags
+		} else {
+			_tags = tags[liveCommentResponse[i].LivestreamID]
+			_tags = append(_tags, Tag{
+				ID:   liveCommentResponse[i].TagID,
+				Name: liveCommentResponse[i].TagName,
+			})
+			tags[liveCommentResponse[i].LivestreamID] = _tags
+		}
+	}
 
-		tags := make([]Tag, len(liveCommentResponse[i].LiveStreamTags))
-		for j := range liveCommentResponse[i].LiveStreamTags {
-			tags[j] = Tag{
-				ID:   liveCommentResponse[i].LiveStreamTags[j].ID,
-				Name: liveCommentResponse[i].LiveStreamTags[j].Name,
-			}
+	for i := range liveCommentResponse {
+		commentOwnerModel := UserModel{
+			ID:      		liveCommentResponse[i].CommentOwnerID,
+			Name:    		liveCommentResponse[i].CommentOwnerName,
+			DisplayName: 	liveCommentResponse[i].CommentOwnerName,
+			Description: 	liveCommentResponse[i].CommentOwnerDesc,
+		}
+
+		commentOwner, err := fillUserResponse(ctx, commentOwnerModel)
+		if err != nil {
+			return nil, err
+		}
+
+		streamOwnerModel := UserModel{
+			ID:      		liveCommentResponse[i].StreamOwnerID,
+			Name:    		liveCommentResponse[i].StreamOwnerName,
+			DisplayName: 	liveCommentResponse[i].StreamOwnerDisplay,
+			Description: 	liveCommentResponse[i].StreamOwnerDesc,
+		}
+
+		streamOwner, err := fillUserResponse(ctx, streamOwnerModel)
+		if err != nil {
+			return nil, err
 		}
 
 		livestream := Livestream{
-			ID:          	liveCommentResponse[i].LiveStream.ID,
-			Owner:       	livestreamOwner,
-			Title:       	liveCommentResponse[i].LiveStream.Title,
-			Description: 	liveCommentResponse[i].LiveStream.Description,
-			PlaylistUrl: 	liveCommentResponse[i].LiveStream.PlaylistUrl,
-			ThumbnailUrl:   liveCommentResponse[i].LiveStream.ThumbnailUrl,
-			Tags:        	tags,
-			StartAt:     	liveCommentResponse[i].LiveStream.StartAt,
-			EndAt:       	liveCommentResponse[i].LiveStream.EndAt,
+			ID:          	liveCommentResponse[i].LivestreamID,
+			Title:       	liveCommentResponse[i].LivestreamTitle,
+			Description: 	liveCommentResponse[i].LivestreamDescription,
+			PlaylistUrl: 	liveCommentResponse[i].LivestreamPlaylistURL,
+			ThumbnailUrl: 	liveCommentResponse[i].LivestreamThumbnailURL,
+			StartAt:     	liveCommentResponse[i].LivestreamStartAt,
+			EndAt:       	liveCommentResponse[i].LivestreamEndAt,
+			Owner:       	streamOwner,
+			Tags:         	tags[liveCommentResponse[i].LivestreamID],
 		}
-			
-
+		
 		livecomments[i] = Livecomment{
-			ID:         liveCommentResponse[i].Livecomment.ID,
-			User:      	user,
+			ID:         liveCommentResponse[i].LivecommentID,
+			User:       commentOwner,
 			Livestream: livestream,
-			Comment:    liveCommentResponse[i].Livecomment.Comment,
-			Tip:        liveCommentResponse[i].Livecomment.Tip,
-			CreatedAt:  liveCommentResponse[i].Livecomment.CreatedAt,
+			Comment:    liveCommentResponse[i].LivecommentComment,
+			Tip:        liveCommentResponse[i].LivecommentTip,
+			CreatedAt:  liveCommentResponse[i].LivecommentCreatedAt,
 		}
 	}
 
