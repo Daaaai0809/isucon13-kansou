@@ -174,7 +174,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream tag: "+err.Error())
 	}
 
-	livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, *livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
@@ -253,7 +253,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 		}
 	}
 
-	livestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+	livestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestreams: "+err.Error())
 	}
@@ -286,7 +286,7 @@ func getMyLivestreamsHandler(c echo.Context) error {
 	if err := tx.SelectContext(ctx, &livestreamModels, "SELECT * FROM livestreams WHERE user_id = ?", userID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
-	livestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+	livestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestreams: "+err.Error())
 	}
@@ -325,7 +325,8 @@ func getUserLivestreamsHandler(c echo.Context) error {
 	if err := tx.SelectContext(ctx, &livestreamModels, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
-	livestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+
+	livestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestreams: "+err.Error())
 	}
@@ -439,7 +440,7 @@ func getLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
 	}
 
-	livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, livestreamModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
@@ -490,7 +491,7 @@ func getLivecommentReportsHandler(c echo.Context) error {
 
 	reports := make([]LivecommentReport, len(reportModels))
 	for i := range reportModels {
-		report, err := fillLivecommentReportResponse(ctx, tx, *reportModels[i])
+		report, err := fillLivecommentReportResponse(ctx, *reportModels[i])
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomment report: "+err.Error())
 		}
@@ -504,9 +505,9 @@ func getLivecommentReportsHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, reports)
 }
 
-func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
+func fillLivestreamResponse(ctx context.Context, livestreamModel LivestreamModel) (Livestream, error) {
 	ownerModel := UserModel{}
-	if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+	if err := dbConn.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return Livestream{}, err
 	}
 	owner, err := fillUserResponse(ctx, ownerModel)
@@ -523,7 +524,7 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	`
 
 	var tagModels []*TagModel
-	if err := tx.SelectContext(ctx, &tagModels, query, livestreamModel.ID); err != nil {
+	if err := dbConn.SelectContext(ctx, &tagModels, query, livestreamModel.ID); err != nil {
 		return Livestream{}, err
 	}
 
@@ -548,7 +549,7 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	return livestream, nil
 }
 
-func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+func fillLivestreamResponseBulk(ctx context.Context, livestreamModels []*LivestreamModel) ([]Livestream, error) {
 	if len(livestreamModels) == 0 {
 		return []Livestream{}, nil
 	}
@@ -563,7 +564,7 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 	if err != nil {
 		return nil, err
 	}
-	if err := tx.SelectContext(ctx, &ownerModels, que, par...); err != nil {
+	if err := dbConn.SelectContext(ctx, &ownerModels, que, par...); err != nil {
 		return nil, err
 	}
 
@@ -573,7 +574,7 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 	}
 
 	owners := map[int64]User{}
-	filledOwners, err := fillUserResponseBulk(ctx, tx, _ownerModels)
+	filledOwners, err := fillUserResponseBulk(ctx, _ownerModels)
 	if err != nil {
 		return nil, err
 	}
@@ -605,7 +606,7 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 		return nil, err
 	}
 
-	if err := tx.SelectContext(ctx, &returns, query, params...); err != nil {
+	if err := dbConn.SelectContext(ctx, &returns, query, params...); err != nil {
 		return nil, err
 	}
 

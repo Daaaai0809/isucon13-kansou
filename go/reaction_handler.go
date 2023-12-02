@@ -151,7 +151,7 @@ func fillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModel Reacti
 	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", reactionModel.LivestreamID); err != nil {
 		return Reaction{}, err
 	}
-	livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, livestreamModel)
 	if err != nil {
 		return Reaction{}, err
 	}
@@ -205,7 +205,7 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 
 	users := make(map[int64]User)
 
-	filledUsers, err := fillUserResponseBulk(ctx, tx, _userModels)
+	filledUsers, err := fillUserResponseBulk(ctx, _userModels)
 	if err != nil {
 		return nil, err
 	}
@@ -215,8 +215,8 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 	}
 
 	livestreams := make(map[int64]Livestream)
-	
-	filledLivestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+
+	filledLivestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func fillReactionResponseBulk(ctx context.Context, tx *sqlx.Tx, reactionModels [
 			Livestream: livestreams[reactionModels[i].LivestreamID],
 			CreatedAt:  reactionModels[i].CreatedAt,
 		}
-		
+
 		reactions = append(reactions, reaction)
 	}
 
