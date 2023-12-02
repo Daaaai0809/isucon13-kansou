@@ -442,7 +442,12 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 	commentOwnerMap := map[int64]User{}
 	if len(commentOwnerIds) > 0 {
 		commentOwnerModels := []UserModel{}
-		if err := tx.SelectContext(ctx, &commentOwnerModels, "SELECT * FROM users WHERE id IN (?)", commentOwnerIds); err != nil {
+		query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentOwnerIds);
+		if err != nil {
+			return []Livecomment{}, err
+		}
+
+		if err := tx.SelectContext(ctx, &commentOwnerModels, query, params...); err != nil {
 			return []Livecomment{}, err
 		}
 		commentOwners, err := fillUserResponseBulk(ctx, tx, commentOwnerModels)
@@ -460,7 +465,12 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 	}
 
 	livestreamModels := make([]*LivestreamModel, len(livestreamIds))
-	if err := tx.SelectContext(ctx, &livestreamModels, "SELECT * FROM livestreams WHERE id IN (?)", livestreamIds); err != nil {
+	query, params, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds);
+	if err != nil {
+		return []Livecomment{}, err
+	}
+
+	if err := tx.SelectContext(ctx, &livestreamModels, query, params...); err != nil {
 		return []Livecomment{}, err
 	}
 
