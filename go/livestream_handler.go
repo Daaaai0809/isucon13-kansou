@@ -557,13 +557,19 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 		return nil, err
 	}
 
-	owners := make([]User, len(ownerModels))
+	_ownerModels := make([]UserModel, 0)
 	for i := range ownerModels {
-		owner, err := fillUserResponse(ctx, *ownerModels[i])
-		if err != nil {
-			return nil, err
-		}
-		owners[i] = owner
+		_ownerModels = append(_ownerModels, *ownerModels[i])
+	}
+
+	owners := map[int64]User{}
+	filledOwners, err := fillUserResponseBulk(ctx, tx, _ownerModels)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, owner := range filledOwners {
+		owners[owner.ID] = owner
 	}
 
 	livestreamIds := make([]int64, 0)
