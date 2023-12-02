@@ -567,45 +567,44 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 		livestreamIds = append(livestreamIds, livestreamModels[i].ID)
 	}
 
-	tagModels := map[int64][]*TagModel{}
+	var returns []*struct {
+		LivestreamID int64 	`db:"livestream_id"`
+		TagID        int64 	`db:"tag_id"`
+		TagName      string `db:"tag_name"`
+	}
+	tags := map[int64][]Tag{}
 	query := `
-		SELECT t.id, t.name
+		SELECT lt.livestream_id, t.id as tag_id, t.name as tag_name
 		FROM tags t
 		INNER JOIN livestream_tags lt ON lt.tag_id = t.id
 		WHERE lt.livestream_id IN (?)
 	`
 
-	var tagModelsBulk []*TagModel
-	if err := tx.SelectContext(ctx, &tagModelsBulk, query, livestreamIds); err != nil {
+	if err := tx.SelectContext(ctx, &returns, query, livestreamIds); err != nil {
 		return nil, err
 	}
 
-	for _, tagModel := range tagModelsBulk {
-		tagModels[tagModel.ID] = append(tagModels[tagModel.ID], tagModel)
+	for _, ret := range returns {
+		tags[ret.LivestreamID] = append(tags[ret.LivestreamID], Tag{
+			ID:   ret.TagID,
+			Name: ret.TagName,
+		})
 	}
 
 	livestreams := make([]Livestream, len(livestreamModels))
-	for i := range livestreamModels {
-		tags := make([]Tag, len(tagModels[livestreamModels[i].ID]))
-		for j := range tagModels[livestreamModels[i].ID] {
-			tags[j] = Tag{
-				ID:   tagModels[livestreamModels[i].ID][j].ID,
-				Name: tagModels[livestreamModels[i].ID][j].Name,
-			}
-		}
-
-		livestreams[i] = Livestream{
-			ID:           livestreamModels[i].ID,
-			Owner:        owners[i],
-			Title:        livestreamModels[i].Title,
-			Tags:         tags,
-			Description:  livestreamModels[i].Description,
-			PlaylistUrl:  livestreamModels[i].PlaylistUrl,
-			ThumbnailUrl: livestreamModels[i].ThumbnailUrl,
-			StartAt:      livestreamModels[i].StartAt,
-			EndAt:        livestreamModels[i].EndAt,
-		}
+	for _, lm := range livestreamModels {
+		livestreams = append(livestreams, Livestream{
+			ID:           lm.ID,
+			Owner:        owners[lm.UserID],
+			Title:        lm.Title,
+			Tags:         tags[lm.ID],
+			Description:  lm.Description,
+			PlaylistUrl:  lm.PlaylistUrl,
+			ThumbnailUrl: lm.ThumbnailUrl,
+			StartAt:      lm.StartAt,
+			EndAt:        lm.EndAt,
+		})
 	}
-
+	
 	return livestreams, nil
 }
