@@ -223,10 +223,10 @@ func postLivecommentHandler(c echo.Context) error {
 
 	var words string
 	for _, ngWord := range ngWords {
-		words += ngWord.Word + "|"
+		words += ngWord.Word + ","
 	}
 
-	if strings.Contains(words, req.Comment) {
+	if strings.Contains(req.Comment, words) {
 		return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
 	}
 
