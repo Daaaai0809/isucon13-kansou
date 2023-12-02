@@ -270,7 +270,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	// for使わずにJOINでN+1を解消する
 	var ranking LivestreamRanking
 	query := `
-	SELECT l.id AS livestream_id, IFNULL(r.reactions, 0) + IFNULL(l2.tips, 0) AS score
+	SELECT l.id AS LivestreamID, IFNULL(r.reactions, 0) + IFNULL(l2.tips, 0) AS score
 	FROM livestreams l
 	LEFT JOIN (
 		SELECT l.id, COUNT(*) AS reactions
