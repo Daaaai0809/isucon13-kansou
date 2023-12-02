@@ -85,6 +85,27 @@ type PostIconResponse struct {
 	ID int64 `json:"id"`
 }
 
+type InMemCache struct {
+	ImageHashes map[int64]string
+}
+
+func (c *InMemCache) Get(key int64) (string, bool) {
+	hash, ok := c.ImageHashes[key]
+	return hash, ok
+}
+
+func (c *InMemCache) Set(key int64, value string) {
+	c.ImageHashes[key] = value
+}
+
+func (c *InMemCache) Delete(key int64) {
+	delete(c.ImageHashes, key)
+}
+
+var iconCache = InMemCache{
+	ImageHashes: make(map[int64]string),
+}
+
 func getIconHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -157,6 +178,9 @@ func postIconHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+
+	iconHash := sha256.Sum256(req.Image)
+	iconCache.Set(userID, fmt.Sprintf("%x", iconHash))
 
 	return c.JSON(http.StatusCreated, &PostIconResponse{
 		ID: iconID,
@@ -404,17 +428,30 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		return User{}, err
 	}
 
-	var image []byte
-	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return User{}, err
-		}
-		image, err = os.ReadFile(fallbackImage)
+	// var image []byte
+	// if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
+	// 	if !errors.Is(err, sql.ErrNoRows) {
+	// 		return User{}, err
+	// 	}
+	// 	image, err = os.ReadFile(fallbackImage)
+	// 	if err != nil {
+	// 		return User{}, err
+	// 	}
+	// }
+
+	iconHash, ok := iconCache.Get(userModel.ID)
+	if ok {
+		iconHash = fmt.Sprintf("%x", iconHash)
+	} else {
+		noImagePath := "../img/NoImage.jpg"
+		noImage, err := os.ReadFile(noImagePath)
 		if err != nil {
 			return User{}, err
 		}
+
+		iconHash = fmt.Sprintf("%x", sha256.Sum256(noImage))
+		iconCache.Set(userModel.ID, iconHash)
 	}
-	iconHash := sha256.Sum256(image)
 
 	user := User{
 		ID:          userModel.ID,
