@@ -102,7 +102,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	LEFT JOIN livecomments l2 ON l2.livestream_id = l.id
 	GROUP BY u.id
 	`
-	var entries []struct {
+	var entries []*struct {
 		Username string
 		Score    int64
 	}
@@ -214,7 +214,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	GROUP BY l.id
 	`
 
-	var entries []struct {
+	var entries []*struct {
 		LivestreamID int64
 		Score        int64
 	}
