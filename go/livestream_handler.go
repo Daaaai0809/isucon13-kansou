@@ -121,6 +121,20 @@ func reserveLivestreamHandler(c echo.Context) error {
 		}
 	}
 
+	var counts []int
+	query := `
+		SELECT slot FROM reservation_slots as rs
+		INNER JOIN reservation_slot_counts as rsc ON rs.id = rsc.reservation_slot_id
+		WHERE rs.start_at >= ? AND rs.end_at <= ?
+	`
+	if err := tx.SelectContext(ctx, &counts, query, req.StartAt, req.EndAt); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get reservation_slots: "+err.Error())
+	}
+
+	if len(counts) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("予約期間 %d ~ %dに対して、予約区間 %d ~ %dが予約できません", termStartAt.Unix(), termEndAt.Unix(), req.StartAt, req.EndAt))
+	}
+
 	var (
 		livestreamModel = &LivestreamModel{
 			UserID:       int64(userID),
