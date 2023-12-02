@@ -95,7 +95,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	// for使わずにN+1を解消する
 	var ranking UserRanking
 	query := `
-	SELECT u.name AS username, IFNULL(r.reactions, 0) + IFNULL(l2.tip, 0) AS score
+	SELECT u.name AS username, IFNULL(l2.tip, 0) AS score
 	FROM users u
 	LEFT JOIN livestreams l ON l.user_id = u.id
 	LEFT JOIN reactions r ON r.livestream_id = l.id
@@ -207,7 +207,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 
 	var ranking LivestreamRanking
 	query := `
-	SELECT l.id AS livestream_id, IFNULL(r.reactions, 0) + IFNULL(l2.tip, 0) AS score
+	SELECT l.id AS livestream_id, IFNULL(l2.tip, 0) AS score
 	FROM livestreams l
 	LEFT JOIN reactions r ON r.livestream_id = l.id
 	LEFT JOIN livecomments l2 ON l2.livestream_id = l.id
