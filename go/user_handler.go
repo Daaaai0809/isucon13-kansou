@@ -106,6 +106,8 @@ var iconCache = InMemCache{
 	ImageHashes: make(map[int64]string),
 }
 
+const NOIMAGE_HASH = "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0"
+
 func getIconHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -443,14 +445,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	if ok {
 		iconHash = fmt.Sprintf("%x", iconHash)
 	} else {
-		noImagePath := "../img/NoImage.jpg"
-		noImage, err := os.ReadFile(noImagePath)
-		if err != nil {
-			return User{}, err
-		}
-
-		iconHash = fmt.Sprintf("%x", sha256.Sum256(noImage))
-		iconCache.Set(userModel.ID, iconHash)
+		iconHash = NOIMAGE_HASH
 	}
 
 	user := User{
