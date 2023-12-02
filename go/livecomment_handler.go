@@ -108,23 +108,7 @@ func getLivecommentsHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	query := `
-		SELECT 
-			u.id AS comment_owner_id, u.name AS comment_owner_name, u.display_name AS comment_owner_display_name, u.description AS comment_owner_description,
-			lc.id AS livecomment_id, lc.comment AS livecomment_comment, lc.tip AS livecomment_tip, lc.created_at AS livecomment_created_at,
-			l.id AS livestream_id, l.title AS livestream_title, l.description AS livestream_description, l.playlist_url AS livestream_playlist_url, l.thumbnail_url AS livestream_thumbnail_url, l.start_at AS livestream_start_at, l.end_at AS livestream_end_at,
-			u2.id AS stream_owner_id, u2.name AS stream_owner_name, u2.display_name AS stream_owner_display_name, u2.description AS stream_owner_description,
-			t.id AS tag_id, t.name AS tag_name
-		FROM livecomments AS lc
-		INNER JOIN users AS u ON lc.user_id = u.id
-		INNER JOIN livestreams AS l ON lc.livestream_id = l.id
-		INNER JOIN users AS u2 ON l.user_id = u2.id
-		LEFT JOIN livestream_tags AS lt ON l.id = lt.livestream_id
-		LEFT JOIN tags AS t ON lt.tag_id = t.id
-		WHERE lc.livestream_id = ?
-		ORDER BY lc.created_at DESC
-	`
-
+	query := "SELECT * FROM livecomments WHERE livestream_id = ? ORDER BY created_at DESC"
 	if c.QueryParam("limit") != "" {
 		limit, err := strconv.Atoi(c.QueryParam("limit"))
 		if err != nil {
@@ -133,15 +117,23 @@ func getLivecommentsHandler(c echo.Context) error {
 		query += fmt.Sprintf(" LIMIT %d", limit)
 	}
 
-	var livecommentResponse LivecommentResponse
-
-	if err := tx.SelectContext(ctx, &livecommentResponse, query, livestreamID); err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, err)
+	livecommentModels := []LivecommentModel{}
+	err = tx.SelectContext(ctx, &livecommentModels, query, livestreamID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return c.JSON(http.StatusOK, []*Livecomment{})
+	}
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
 	}
 
-	livecomments, err := fillLivecommentResponses(ctx, livecommentResponse)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomments: "+err.Error())
+	livecomments := make([]Livecomment, len(livecommentModels))
+	for i := range livecommentModels {
+		livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModels[i])
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fil livecomments: "+err.Error())
+		}
+
+		livecomments[i] = livecomment
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -448,79 +440,47 @@ func moderateHandler(c echo.Context) error {
 	})
 }
 
-func fillLivecommentResponses(ctx context.Context, liveCommentResponse LivecommentResponse) ([]Livecomment, error) {
-	livecomments := make([]Livecomment, 0)
-
-	var tags map[int64][]Tag = make(map[int64][]Tag)
-	for i := range liveCommentResponse {
-		_tags := []Tag{}
-		if _, ok := tags[liveCommentResponse[i].LivestreamID]; !ok {
-			_tags = append(_tags, Tag{
-				ID:   liveCommentResponse[i].TagID,
-				Name: liveCommentResponse[i].TagName,
-			})
-			tags[liveCommentResponse[i].LivestreamID] = _tags
-		} else {
-			_tags = tags[liveCommentResponse[i].LivestreamID]
-			_tags = append(_tags, Tag{
-				ID:   liveCommentResponse[i].TagID,
-				Name: liveCommentResponse[i].TagName,
-			})
-			tags[liveCommentResponse[i].LivestreamID] = _tags
-		}
+func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModels []LivecommentModel) ([]Livecomment, error) {
+	commentOwnerIds := []int64{}
+	for _, livecommentModel := range livecommentModels {
+		commentOwnerIds = append(commentOwnerIds, livecommentModel.UserID)
+	}
+	commentOwner := make([]User, len(commentOwnerIds))
+	if err := tx.SelectContext(ctx, &commentOwner, "SELECT * FROM users WHERE id IN (?)", commentOwnerIds); err != nil {
+		return []Livecomment{}, err
 	}
 
-	for _, lcr := range liveCommentResponse {
-		commentOwnerModel := UserModel{
-			ID:      		lcr.CommentOwnerID,
-			Name:    		lcr.CommentOwnerName,
-			DisplayName: 	lcr.CommentOwnerName,
-			Description: 	lcr.CommentOwnerDesc,
-		}
+	livestreamIds := []int64{}
+	for _, livecommentModel := range livecommentModels {
+		livestreamIds = append(livestreamIds, livecommentModel.LivestreamID)
+	}
 
-		commentOwner, err := fillUserResponse(ctx, commentOwnerModel)
-		if err != nil {
-			return nil, err
-		}
+	livestreamModels := make([]*LivestreamModel, len(livestreamIds))
+	if err := tx.SelectContext(ctx, &livestreamModels, "SELECT * FROM livestreams WHERE id IN (?)", livestreamIds); err != nil {
+		return []Livecomment{}, err
+	}
 
-		streamOwnerModel := UserModel{
-			ID:      		lcr.StreamOwnerID,
-			Name:    		lcr.StreamOwnerName,
-			DisplayName: 	lcr.StreamOwnerDisplay,
-			Description: 	lcr.StreamOwnerDesc,
-		}
+	livestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+	if err != nil {
+		return []Livecomment{}, err
+	}
 
-		streamOwner, err := fillUserResponse(ctx, streamOwnerModel)
-		if err != nil {
-			return nil, err
+	livecomments := make([]Livecomment, len(livecommentModels))
+	for i := range livecommentModels {
+		livecomment := Livecomment{
+			ID:         livecommentModels[i].ID,
+			User:       commentOwner[i],
+			Livestream: livestreams[i],
+			Comment:    livecommentModels[i].Comment,
+			Tip:        livecommentModels[i].Tip,
+			CreatedAt:  livecommentModels[i].CreatedAt,
 		}
-
-		livestream := Livestream{
-			ID:          	lcr.LivestreamID,
-			Title:       	lcr.LivestreamTitle,
-			Description: 	lcr.LivestreamDescription,
-			PlaylistUrl: 	lcr.LivestreamPlaylistURL,
-			ThumbnailUrl: 	lcr.LivestreamThumbnailURL,
-			StartAt:     	lcr.LivestreamStartAt,
-			EndAt:       	lcr.LivestreamEndAt,
-			Owner:       	streamOwner,
-			Tags:         	tags[lcr.LivestreamID],
-		}
-		
-		c := Livecomment{
-			ID:         lcr.LivecommentID,
-			User:       commentOwner,
-			Livestream: livestream,
-			Comment:    lcr.LivecommentComment,
-			Tip:        lcr.LivecommentTip,
-			CreatedAt:  lcr.LivecommentCreatedAt,
-		}
-
-		livecomments = append(livecomments, c)
+		livecomments[i] = livecomment
 	}
 
 	return livecomments, nil
 }
+
 
 func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel LivecommentModel) (Livecomment, error) {
 	commentOwnerModel := UserModel{}
@@ -552,6 +512,7 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 
 	return livecomment, nil
 }
+
 
 func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
 	reporterModel := UserModel{}

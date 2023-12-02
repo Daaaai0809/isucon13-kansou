@@ -541,3 +541,71 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	}
 	return livestream, nil
 }
+
+func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+	ownerIds := make([]int64, 0)
+	for i := range livestreamModels {
+		ownerIds = append(ownerIds, livestreamModels[i].UserID)
+	}
+
+	ownerModels := make([]*UserModel, len(livestreamModels))
+	if err := tx.SelectContext(ctx, &ownerModels, "SELECT * FROM users WHERE id IN (?)", ownerIds); err != nil {
+		return nil, err
+	}
+
+	owners := make([]User, len(ownerModels))
+	for i := range ownerModels {
+		owner, err := fillUserResponse(ctx, *ownerModels[i])
+		if err != nil {
+			return nil, err
+		}
+		owners[i] = owner
+	}
+
+	livestreamIds := make([]int64, 0)
+	for i := range livestreamModels {
+		livestreamIds = append(livestreamIds, livestreamModels[i].ID)
+	}
+
+	tagModels := map[int64][]*TagModel{}
+	query := `
+		SELECT t.id, t.name
+		FROM tags t
+		INNER JOIN livestream_tags lt ON lt.tag_id = t.id
+		WHERE lt.livestream_id IN (?)
+	`
+
+	var tagModelsBulk []*TagModel
+	if err := tx.SelectContext(ctx, &tagModelsBulk, query, livestreamIds); err != nil {
+		return nil, err
+	}
+
+	for _, tagModel := range tagModelsBulk {
+		tagModels[tagModel.ID] = append(tagModels[tagModel.ID], tagModel)
+	}
+
+	livestreams := make([]Livestream, len(livestreamModels))
+	for i := range livestreamModels {
+		tags := make([]Tag, len(tagModels[livestreamModels[i].ID]))
+		for j := range tagModels[livestreamModels[i].ID] {
+			tags[j] = Tag{
+				ID:   tagModels[livestreamModels[i].ID][j].ID,
+				Name: tagModels[livestreamModels[i].ID][j].Name,
+			}
+		}
+
+		livestreams[i] = Livestream{
+			ID:           livestreamModels[i].ID,
+			Owner:        owners[i],
+			Title:        livestreamModels[i].Title,
+			Tags:         tags,
+			Description:  livestreamModels[i].Description,
+			PlaylistUrl:  livestreamModels[i].PlaylistUrl,
+			ThumbnailUrl: livestreamModels[i].ThumbnailUrl,
+			StartAt:      livestreamModels[i].StartAt,
+			EndAt:        livestreamModels[i].EndAt,
+		}
+	}
+
+	return livestreams, nil
+}
