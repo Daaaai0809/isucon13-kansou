@@ -179,7 +179,7 @@ func getIconHandler(c echo.Context) error {
 		}
 	}
 
-	mu.Unlock)
+	mu.Unlock()
 
 	newIconHash := sha256.Sum256(image)
 	iconCache.Set(user.ID, fmt.Sprintf("%x", newIconHash))
