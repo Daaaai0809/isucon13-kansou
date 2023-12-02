@@ -93,13 +93,13 @@ func getLivecommentsHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	query := `
-		SELECT u.* AS comment_owner, lc.* AS livecomment, l.* AS livestream, u2.* AS stream_owner, t.* AS livestream_tags 
+		SELECT u.*, lc.*, l.*, u2.*, t.*
 		FROM livecomments AS lc
-		INNER JOIN users AS u ON lc.user_id = u.id
-		INNER JOIN livestreams AS l ON lc.livestream_id = l.id
-		INNER JOIN users AS u2 ON l.user_id = u2.id
-		INNER JOIN livestream_tags AS lt ON l.id = lt.livestream_id
-		INNER JOIN tags AS t ON lt.tag_id = t.id
+		LEFT JOIN users AS u ON lc.user_id = u.id
+		LEFT JOIN livestreams AS l ON lc.livestream_id = l.id
+		LEFT JOIN users AS u2 ON l.user_id = u2.id
+		LEFT JOIN livestream_tags AS lt ON l.id = lt.livestream_id
+		LEFT JOIN tags AS t ON lt.tag_id = t.id
 		WHERE lc.livestream_id = ?
 		ORDER BY lc.created_at DESC
 	`
