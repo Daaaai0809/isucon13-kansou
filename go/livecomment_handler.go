@@ -398,47 +398,18 @@ func moderateHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 	}
 
-	if len(ngwords) == 0 {
-		return c.JSON(http.StatusCreated, map[string]interface{}{
-			"word_id": wordID,
-		})
-	}
-
-	var liveComments []*LivecommentModel
-	if err := tx.SelectContext(ctx, &liveComments, "SELECT * FROM livecomments"); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
-	}
-
-	livecommentIds := []int64{}
-	for _, livecomment := range liveComments {
-		livecommentIds = append(livecommentIds, livecomment.ID)
-	}
-
-	words := []string{}
-	for _, ngword := range ngwords {
-		words = append(words, ngword.Word)
-	}
-
 	// bulk delete
 	query := `
 	DELETE FROM livecomments
-	WHERE
-	id = (?) AND
-	livestream_id = ? AND
-	(SELECT COUNT(*)
-	FROM
-	(SELECT ? AS text) AS texts
-	INNER JOIN
-	(SELECT CONCAT('%', (?), '%')	AS pattern) AS patterns
-	ON texts.text LIKE patterns.pattern) >= 1;
+	WHERE livestream_id = ? AND
 	`
 
-	query, params, err := sqlx.In(query, livecommentIds, livestreamID, words)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
+	for _, ngword := range ngwords {
+		query += fmt.Sprintf("comment LIKE '%%%s%%' OR", ngword.Word)
 	}
+	query = query[:len(query)-2]
 
-	if _, err := tx.ExecContext(ctx, query, params...); err != nil {
+	if _, err := tx.ExecContext(ctx, query, livestreamID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 	}
 
