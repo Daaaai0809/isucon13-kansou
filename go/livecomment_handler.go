@@ -125,7 +125,7 @@ func getLivecommentsHandler(c echo.Context) error {
 
 	mu.Unlock()
 
-	livecomments, err := fillLivecommentResponses(ctx, tx, livecommentModels)
+	livecomments, err := fillLivecommentResponses(ctx, livecommentModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomments: "+err.Error())
 	}
@@ -241,7 +241,7 @@ func postLivecommentHandler(c echo.Context) error {
 	}
 	livecommentModel.ID = livecommentID
 
-	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
+	livecomment, err := fillLivecommentResponse(ctx, livecommentModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomment: "+err.Error())
 	}
@@ -316,7 +316,7 @@ func reportLivecommentHandler(c echo.Context) error {
 	}
 	reportModel.ID = reportID
 
-	report, err := fillLivecommentReportResponse(ctx, tx, reportModel)
+	report, err := fillLivecommentReportResponse(ctx, reportModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomment report: "+err.Error())
 	}
