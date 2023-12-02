@@ -398,37 +398,11 @@ func moderateHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 	}
 
-	// // NGワードにヒットする過去の投稿も全削除する
-	// for _, ngword := range ngwords {
-	// 	// ライブコメント一覧取得
-	// 	var livecomments []*LivecommentModel
-	// 	if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments"); err != nil {
-	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
-	// 	}
-
-	// 	// for _, livecomment := range livecomments {
-	// 	// 	query := `
-	// 	// 	DELETE FROM livecomments
-	// 	// 	WHERE
-	// 	// 	id = ? AND
-	// 	// 	livestream_id = ? AND
-	// 	// 	(SELECT COUNT(*)
-	// 	// 	FROM
-	// 	// 	(SELECT ? AS text) AS texts
-	// 	// 	INNER JOIN
-	// 	// 	(SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-	// 	// 	ON texts.text LIKE patterns.pattern) >= 1;
-	// 	// 	`
-	// 	// 	if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID, livecomment.Comment, ngword.Word); err != nil {
-	// 	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
-	// 	// 	}
-	// 	// }
-	
-	// 	livecommentIds := []int64{}
-	// 	for _, livecomment := range livecomments {
-	// 		livecommentIds = append(livecommentIds, livecomment.ID)
-	// 	}
-	// }
+	if len(ngwords) == 0 {
+		return c.JSON(http.StatusCreated, map[string]interface{}{
+			"word_id": wordID,
+		})
+	}
 
 	var liveComments []*LivecommentModel
 	if err := tx.SelectContext(ctx, &liveComments, "SELECT * FROM livecomments"); err != nil {
