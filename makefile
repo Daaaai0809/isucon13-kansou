@@ -7,7 +7,6 @@ rotate-all: rotate-access-log rotate-slow-log
 rotate-access-log:
 	echo "Rotating access log"
 	sudo mv /var/log/nginx/access.ndjson /var/log/nginx/access.ndjson.$(shell date +%Y%m%d)
-	sudo rm /var/log/nginx/access.ndjson
 	sudo systemctl restart nginx
 	
 
@@ -15,7 +14,6 @@ rotate-access-log:
 rotate-slow-log:
 	echo "Rotating slow log"
 	sudo mv /var/log/mysql/mysql-slow.log /var/log/mysql/mysql-slow.log.$(shell date +%Y%m%d)
-	sudo rm /var/log/mysql/mysql-slow.log
 	sudo systemctl restart mysql
 
 .PHONY: alp
