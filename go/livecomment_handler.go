@@ -449,7 +449,7 @@ func moderateHandler(c echo.Context) error {
 }
 
 func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentResponse LivecommentResponse) ([]Livecomment, error) {
-	livecomments := make([]Livecomment, len(liveCommentResponse))
+	livecomments := make([]Livecomment, 0)
 
 	var tags map[int64][]Tag = make(map[int64][]Tag)
 	for i := range liveCommentResponse {
@@ -507,7 +507,7 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentRespo
 			Tags:         	tags[liveCommentResponse[i].LivestreamID],
 		}
 		
-		livecomments[i] = Livecomment{
+		c := Livecomment{
 			ID:         liveCommentResponse[i].LivecommentID,
 			User:       commentOwner,
 			Livestream: livestream,
@@ -515,6 +515,8 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentRespo
 			Tip:        liveCommentResponse[i].LivecommentTip,
 			CreatedAt:  liveCommentResponse[i].LivecommentCreatedAt,
 		}
+
+		livecomments = append(livecomments, c)
 	}
 
 	return livecomments, nil
