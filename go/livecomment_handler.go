@@ -93,12 +93,13 @@ func getLivecommentsHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	query := `
-		SELECT u.* AS comment_owner, lc.* AS livecomment, ls.* AS livestream, u2.* AS stream_owner t.* AS livestream_tags FROM livecomments AS lc 
-		WHERE lc.livestream_id = ? ORDER BY created_at DESC 
-		INNER JOIN users u ON lc.user_id = u.id
-		INNER JOIN livestreams AS ls ON lc.livestream_id = ls.id
-		INNER JOIN users AS u2 ON livestreams.user_id = users.id
-		INNER JOIN tags AS t ON ls.id = t.livestream_id
+		SELECT lc.* AS livecomment, u.* AS comment_owner, ls.* AS livestream, u2.* AS stream_owner t.* AS livestream_tags FROM livecomments AS lc 
+		WHERE lc.livestream_id = ? 
+		ORDER BY created_at DESC 
+		LEFT JOIN users u ON lc.user_id = u.id
+		LEFT JOIN livestreams AS ls ON lc.livestream_id = ls.id
+		LEFT JOIN users AS u2 ON livestreams.user_id = users.id
+		LEFT JOIN tags AS t ON ls.id = t.livestream_id
 	`
 	if c.QueryParam("limit") != "" {
 		limit, err := strconv.Atoi(c.QueryParam("limit"))
