@@ -97,7 +97,10 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(10)
+
+	db.Preparex("SET SESSION sql_mode='TRADITIONAL,NO_AUTO_VALUE_ON_ZERO,ONLY_FULL_GROUP_BY'")
+
+	db.SetMaxOpenConns(100)
 
 	if err := db.Ping(); err != nil {
 		return nil, err
@@ -110,6 +113,16 @@ func initializeHandler(c echo.Context) error {
 	if out, err := exec.Command("../sql/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
+
+	query := []string{
+		"CREATE INDEX `idx_livestream_id_on_livestream_tags` ON `livestream_tags` (`livestream_id`);",
+	}
+
+	for _, q := range query {
+		if _, err := dbConn.Exec(q); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
