@@ -124,7 +124,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 	var counts []int
 	query := `
 		SELECT slot FROM reservation_slots as rs
-		INNER JOIN reservation_slot_counts as rsc ON rs.id = rsc.reservation_slot_id
+		INNER JOIN reservation_slots as rs2 ON rs.start_at = rs2.start_at AND rs.end_at = rs2.end_at
 		WHERE rs.start_at >= ? AND rs.end_at <= ?
 	`
 	if err := tx.SelectContext(ctx, &counts, query, req.StartAt, req.EndAt); err != nil {
