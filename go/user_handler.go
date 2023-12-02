@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -470,13 +471,7 @@ func verifyUserSession(c echo.Context) error {
 }
 
 func fillUserResponse(ctx context.Context, userModel UserModel) (User, error) {
-	// themeModel := ThemeModel{}
-	// if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
-	// 	return User{}, err
-	// }
-
-	themeCache.Get(userModel.ID)
-
+	theme := themeCache.Get(userModel.ID)
 	iconHash := iconCache.Get(userModel.ID)
 
 	user := User{
@@ -486,10 +481,33 @@ func fillUserResponse(ctx context.Context, userModel UserModel) (User, error) {
 		Description: userModel.Description,
 		Theme: Theme{
 			ID:       userModel.ID,
-			DarkMode: themeCache.Get(userModel.ID),
+			DarkMode: theme,
 		},
 		IconHash: iconHash,
 	}
 
 	return user, nil
+}
+
+func fillUserResponseBulk(ctx context.Context, tx *sqlx.Tx, userModels []UserModel) ([]User, error) {
+	users := make([]User, len(userModels))
+	
+	for i, userModel := range userModels {
+		theme := themeCache.Get(userModel.ID)
+		iconHash := iconCache.Get(userModel.ID)
+		
+		users[i] = User{
+			ID:          userModel.ID,
+			Name:        userModel.Name,
+			DisplayName: userModel.DisplayName,
+			Description: userModel.Description,
+			Theme: Theme{
+				ID:       userModel.ID,
+				DarkMode: theme,
+			},
+			IconHash: iconHash,
+		}
+	}
+
+	return users, nil
 }

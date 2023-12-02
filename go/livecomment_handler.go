@@ -127,6 +127,9 @@ func getLivecommentsHandler(c echo.Context) error {
 	}
 
 	livecomments, err := fillLivecommentResponses(ctx, tx, livecommentModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomments: "+err.Error())
+	}
 
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
@@ -436,14 +439,19 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 	for _, livecommentModel := range livecommentModels {
 		commentOwnerIds = append(commentOwnerIds, livecommentModel.UserID)
 	}
-	commentOwner := make([]User, len(commentOwnerIds))
-	if err := tx.SelectContext(ctx, &commentOwner, "SELECT * FROM users WHERE id IN (?)", commentOwnerIds); err != nil {
-		return []Livecomment{}, err
-	}
-
 	commentOwnerMap := map[int64]User{}
-	for _, user := range commentOwner {
-		commentOwnerMap[user.ID] = user
+	if len(commentOwnerIds) > 0 {
+		commentOwnerModels := []UserModel{}
+		if err := tx.SelectContext(ctx, &commentOwnerModels, "SELECT * FROM users WHERE id IN (?)", commentOwnerIds); err != nil {
+			return []Livecomment{}, err
+		}
+		commentOwners, err := fillUserResponseBulk(ctx, tx, commentOwnerModels)
+		if err != nil {
+			return []Livecomment{}, err
+		}
+		for _, commentOwner := range commentOwners {
+			commentOwnerMap[commentOwner.ID] = commentOwner
+		}
 	}
 
 	livestreamIds := []int64{}
