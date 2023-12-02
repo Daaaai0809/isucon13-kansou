@@ -103,11 +103,7 @@ func getLivecommentsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "livestream_id in path must be integer")
 	}
 
-	tx, err := dbConn.BeginTxx(ctx, nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
-	}
-	defer tx.Rollback()
+	mu.RLock()
 
 	query := "SELECT * FROM livecomments WHERE livestream_id = ? ORDER BY created_at DESC"
 	if c.QueryParam("limit") != "" {
@@ -119,7 +115,7 @@ func getLivecommentsHandler(c echo.Context) error {
 	}
 
 	livecommentModels := []LivecommentModel{}
-	err = tx.SelectContext(ctx, &livecommentModels, query, livestreamID)
+	err = dbConn.SelectContext(ctx, &livecommentModels, query, livestreamID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return c.JSON(http.StatusOK, []*Livecomment{})
 	}
@@ -127,13 +123,11 @@ func getLivecommentsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
 	}
 
+	mu.Unlock()
+
 	livecomments, err := fillLivecommentResponses(ctx, tx, livecommentModels)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomments: "+err.Error())
-	}
-
-	if err := tx.Commit(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	return c.JSON(http.StatusOK, livecomments)
@@ -416,10 +410,12 @@ func moderateHandler(c echo.Context) error {
 	})
 }
 
-func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModels []LivecommentModel) ([]Livecomment, error) {
+func fillLivecommentResponses(ctx context.Context, livecommentModels []LivecommentModel) ([]Livecomment, error) {
 	if len(livecommentModels) == 0 {
 		return []Livecomment{}, nil
 	}
+
+	mu.RLock()
 
 	commentOwnerIds := []int64{}
 	for _, livecommentModel := range livecommentModels {
@@ -428,15 +424,15 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 	commentOwnerMap := map[int64]User{}
 	if len(commentOwnerIds) > 0 {
 		commentOwnerModels := []UserModel{}
-		query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentOwnerIds);
+		query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentOwnerIds)
 		if err != nil {
 			return []Livecomment{}, err
 		}
 
-		if err := tx.SelectContext(ctx, &commentOwnerModels, query, params...); err != nil {
+		if err := dbConn.SelectContext(ctx, &commentOwnerModels, query, params...); err != nil {
 			return []Livecomment{}, err
 		}
-		commentOwners, err := fillUserResponseBulk(ctx, tx, commentOwnerModels)
+		commentOwners, err := fillUserResponseBulk(ctx, commentOwnerModels)
 		if err != nil {
 			return []Livecomment{}, err
 		}
@@ -445,22 +441,28 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 		}
 	}
 
+	mu.Unlock()
+
 	livestreamIds := []int64{}
 	for _, livecommentModel := range livecommentModels {
 		livestreamIds = append(livestreamIds, livecommentModel.LivestreamID)
 	}
 
+	mu.RLock()
+
 	livestreamModels := make([]*LivestreamModel, len(livestreamIds))
-	query, params, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds);
+	query, params, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIds)
 	if err != nil {
 		return []Livecomment{}, err
 	}
 
-	if err := tx.SelectContext(ctx, &livestreamModels, query, params...); err != nil {
+	if err := dbConn.SelectContext(ctx, &livestreamModels, query, params...); err != nil {
 		return []Livecomment{}, err
 	}
 
-	livestreams, err := fillLivestreamResponseBulk(ctx, tx, livestreamModels)
+	mu.Unlock()
+
+	livestreams, err := fillLivestreamResponseBulk(ctx, livestreamModels)
 	if err != nil {
 		return []Livecomment{}, err
 	}
@@ -486,9 +488,11 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 	return livecomments, nil
 }
 
-func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel LivecommentModel) (Livecomment, error) {
+func fillLivecommentResponse(ctx context.Context, livecommentModel LivecommentModel) (Livecomment, error) {
+	mu.RLock()
+
 	commentOwnerModel := UserModel{}
-	if err := tx.GetContext(ctx, &commentOwnerModel, "SELECT * FROM users WHERE id = ?", livecommentModel.UserID); err != nil {
+	if err := dbConn.GetContext(ctx, &commentOwnerModel, "SELECT * FROM users WHERE id = ?", livecommentModel.UserID); err != nil {
 		return Livecomment{}, err
 	}
 	commentOwner, err := fillUserResponse(ctx, commentOwnerModel)
@@ -496,14 +500,20 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 		return Livecomment{}, err
 	}
 
+	mu.Unlock()
+
+	mu.RLock()
+
 	livestreamModel := LivestreamModel{}
-	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livecommentModel.LivestreamID); err != nil {
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livecommentModel.LivestreamID); err != nil {
 		return Livecomment{}, err
 	}
-	livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+	livestream, err := fillLivestreamResponse(ctx, livestreamModel)
 	if err != nil {
 		return Livecomment{}, err
 	}
+
+	mu.Unlock()
 
 	livecomment := Livecomment{
 		ID:         livecommentModel.ID,
@@ -517,24 +527,30 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 	return livecomment, nil
 }
 
-func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
+func fillLivecommentReportResponse(ctx context.Context, reportModel LivecommentReportModel) (LivecommentReport, error) {
+	mu.RLock()
 	reporterModel := UserModel{}
-	if err := tx.GetContext(ctx, &reporterModel, "SELECT * FROM users WHERE id = ?", reportModel.UserID); err != nil {
+	if err := dbConn.GetContext(ctx, &reporterModel, "SELECT * FROM users WHERE id = ?", reportModel.UserID); err != nil {
 		return LivecommentReport{}, err
 	}
 	reporter, err := fillUserResponse(ctx, reporterModel)
 	if err != nil {
 		return LivecommentReport{}, err
 	}
+	mu.Unlock()
+
+	mu.RLock()
 
 	livecommentModel := LivecommentModel{}
-	if err := tx.GetContext(ctx, &livecommentModel, "SELECT * FROM livecomments WHERE id = ?", reportModel.LivecommentID); err != nil {
+	if err := dbConn.GetContext(ctx, &livecommentModel, "SELECT * FROM livecomments WHERE id = ?", reportModel.LivecommentID); err != nil {
 		return LivecommentReport{}, err
 	}
-	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
+	livecomment, err := fillLivecommentResponse(ctx, livecommentModel)
 	if err != nil {
 		return LivecommentReport{}, err
 	}
+
+	mu.Unlock()
 
 	report := LivecommentReport{
 		ID:          reportModel.ID,
