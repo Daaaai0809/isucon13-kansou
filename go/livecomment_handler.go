@@ -235,6 +235,10 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get hitspam: "+err.Error())
 	}
 
+	if hitSpam >= 1 {
+		return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
+	}
+
 	now := time.Now().Unix()
 	livecommentModel := LivecommentModel{
 		UserID:       userID,
