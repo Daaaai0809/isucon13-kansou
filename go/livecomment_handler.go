@@ -221,13 +221,10 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 	}
 
-	var words string
 	for _, ngWord := range ngWords {
-		words += ngWord.Word + ","
-	}
-
-	if strings.Contains(req.Comment, words) {
-		return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
+		if strings.Contains(req.Comment, ngWord.Word) {
+			return echo.NewHTTPError(http.StatusBadRequest, "comment contains NG word")
+		}
 	}
 
 	now := time.Now().Unix()
