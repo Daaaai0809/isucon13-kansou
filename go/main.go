@@ -146,7 +146,6 @@ func main() {
 	go func() {
         log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
      }()
-
 	e := echo.New()
 	e.Debug = true
 	e.Logger.SetLevel(echolog.DEBUG)
