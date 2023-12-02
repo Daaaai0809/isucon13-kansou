@@ -511,7 +511,7 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	query := `
 		SELECT t.id, t.name
 		FROM tags t
-		INNER JOIN livestream_tags lt ON lt.tag_id = t.id
+		LEFT JOIN livestream_tags lt ON lt.tag_id = t.id
 		WHERE lt.livestream_id = ?
 	`
 
@@ -589,7 +589,7 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 	q := `
 		SELECT lt.livestream_id, t.id as tag_id, t.name as tag_name
 		FROM tags t
-		INNER JOIN livestream_tags lt ON lt.tag_id = t.id
+		LEFT JOIN livestream_tags lt ON lt.tag_id = t.id
 		WHERE lt.livestream_id IN (?)
 	`
 
