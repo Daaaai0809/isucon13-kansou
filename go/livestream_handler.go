@@ -568,8 +568,8 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 	}
 
 	var returns []*struct {
-		LivestreamID int64 	`db:"livestream_id"`
-		TagID        int64 	`db:"tag_id"`
+		LivestreamID int64  `db:"livestream_id"`
+		TagID        int64  `db:"tag_id"`
 		TagName      string `db:"tag_name"`
 	}
 	tags := map[int64][]Tag{}
@@ -605,6 +605,6 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 			EndAt:        lm.EndAt,
 		})
 	}
-	
+
 	return livestreams, nil
 }

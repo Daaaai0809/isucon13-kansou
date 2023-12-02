@@ -104,7 +104,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	`
 	var entries []*struct {
 		Username string `db:"username"`
-		Score    int64 `db:"score"`
+		Score    int64  `db:"score"`
 	}
 
 	if err := tx.SelectContext(ctx, &entries, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -147,7 +147,6 @@ func getUserStatisticsHandler(c echo.Context) error {
 	if err := tx.SelectContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
-
 
 	// 合計視聴者数
 	var viewersCount int64

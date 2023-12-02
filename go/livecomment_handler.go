@@ -66,27 +66,27 @@ type NGWord struct {
 }
 
 type LivecommentResponse []*struct {
-	CommentOwnerID      int64  `db:"comment_owner_id"`
-	CommentOwnerName    string `db:"comment_owner_name"`
-	CommentOwnerDisplay string `db:"comment_owner_display_name"`
-	CommentOwnerDesc    string `db:"comment_owner_description"`
-	LivecommentID       int64  `db:"livecomment_id"`
-	LivecommentComment  string `db:"livecomment_comment"`
-	LivecommentTip      int64  `db:"livecomment_tip"`
-	LivecommentCreatedAt int64 `db:"livecomment_created_at"`
-	LivestreamID        int64  `db:"livestream_id"`
-	LivestreamTitle     string `db:"livestream_title"`
-	LivestreamDescription string `db:"livestream_description"`
-	LivestreamPlaylistURL string `db:"livestream_playlist_url"`
+	CommentOwnerID         int64  `db:"comment_owner_id"`
+	CommentOwnerName       string `db:"comment_owner_name"`
+	CommentOwnerDisplay    string `db:"comment_owner_display_name"`
+	CommentOwnerDesc       string `db:"comment_owner_description"`
+	LivecommentID          int64  `db:"livecomment_id"`
+	LivecommentComment     string `db:"livecomment_comment"`
+	LivecommentTip         int64  `db:"livecomment_tip"`
+	LivecommentCreatedAt   int64  `db:"livecomment_created_at"`
+	LivestreamID           int64  `db:"livestream_id"`
+	LivestreamTitle        string `db:"livestream_title"`
+	LivestreamDescription  string `db:"livestream_description"`
+	LivestreamPlaylistURL  string `db:"livestream_playlist_url"`
 	LivestreamThumbnailURL string `db:"livestream_thumbnail_url"`
-	LivestreamStartAt   int64  `db:"livestream_start_at"`
-	LivestreamEndAt     int64  `db:"livestream_end_at"`
-	StreamOwnerID       int64  `db:"stream_owner_id"`
-	StreamOwnerName     string `db:"stream_owner_name"`
-	StreamOwnerDisplay  string `db:"stream_owner_display_name"`
-	StreamOwnerDesc     string `db:"stream_owner_description"`
-	TagID               int64  `db:"tag_id"`
-	TagName             string `db:"tag_name"`
+	LivestreamStartAt      int64  `db:"livestream_start_at"`
+	LivestreamEndAt        int64  `db:"livestream_end_at"`
+	StreamOwnerID          int64  `db:"stream_owner_id"`
+	StreamOwnerName        string `db:"stream_owner_name"`
+	StreamOwnerDisplay     string `db:"stream_owner_display_name"`
+	StreamOwnerDesc        string `db:"stream_owner_description"`
+	TagID                  int64  `db:"tag_id"`
+	TagName                string `db:"tag_name"`
 }
 
 func getLivecommentsHandler(c echo.Context) error {
@@ -249,7 +249,6 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livecomment id: "+err.Error())
 	}
 	livecommentModel.ID = livecommentID
-
 
 	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
 	if err != nil {
@@ -483,7 +482,6 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 	return livecomments, nil
 }
 
-
 func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel LivecommentModel) (Livecomment, error) {
 	commentOwnerModel := UserModel{}
 	if err := tx.GetContext(ctx, &commentOwnerModel, "SELECT * FROM users WHERE id = ?", livecommentModel.UserID); err != nil {
@@ -514,7 +512,6 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 
 	return livecomment, nil
 }
-
 
 func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
 	reporterModel := UserModel{}

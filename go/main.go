@@ -11,8 +11,8 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/exec"
-	"strconv"
 	"runtime"
+	"strconv"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -135,7 +135,7 @@ func initializeHandler(c echo.Context) error {
 
 	for _, q := range query {
 		if _, err := dbConn.Exec(q); err != nil {
-			continue;
+			continue
 		}
 	}
 
@@ -149,8 +149,8 @@ func main() {
 	runtime.SetBlockProfileRate(1)
 	runtime.SetMutexProfileFraction(1)
 	go func() {
-        log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
-    }()
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
 	e := echo.New()
 	e.Debug = true
 	e.Logger.SetLevel(echolog.DEBUG)

@@ -25,7 +25,7 @@ const (
 	defaultUserIDKey         = "USERID"
 	defaultUsernameKey       = "USERNAME"
 	bcryptDefaultCost        = bcrypt.MinCost
-	NOIMAGE_HASH = "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0"
+	NOIMAGE_HASH             = "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0"
 )
 
 var fallbackImage = "../img/NoImage.jpg"
@@ -89,7 +89,7 @@ type InMemCache struct {
 	ImageHashes map[int64]string
 }
 
-func (c *InMemCache) Get(key int64) (string) {
+func (c *InMemCache) Get(key int64) string {
 	hash, ok := c.ImageHashes[key]
 	if !ok {
 		return NOIMAGE_HASH
@@ -113,7 +113,7 @@ type InMemThemeCache struct {
 	Theme map[int64]bool
 }
 
-func (c *InMemThemeCache) Get(key int64) (bool) {
+func (c *InMemThemeCache) Get(key int64) bool {
 	theme, ok := c.Theme[key]
 	if !ok {
 		return false
@@ -161,7 +161,7 @@ func getIconHandler(c echo.Context) error {
 	}
 
 	iconHash := iconCache.Get(user.ID)
-	
+
 	match, ok := c.Request().Header["If-None-Match"]
 	if ok && strings.Contains(match[0], iconHash) {
 		return c.NoContent(http.StatusNotModified)
@@ -319,7 +319,6 @@ func registerHandler(c echo.Context) error {
 
 	// themeをcacheに入れる
 	themeCache.Set(userID, req.Theme.DarkMode)
-
 
 	if out, err := exec.Command("pdnsutil", "add-record", "u.isucon.dev", req.Name, "A", "0", powerDNSSubdomainAddress).CombinedOutput(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
