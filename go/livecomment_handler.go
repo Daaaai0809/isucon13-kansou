@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -215,21 +216,17 @@ func postLivecommentHandler(c echo.Context) error {
 		}
 	}
 
-	var hitSpam int
-	query := `
-	SELECT COUNT(*)
-	FROM
-	(SELECT ? AS text) AS texts
-	INNER JOIN ng_words AS nw
-	ON texts.text LIKE CONCAT('%', nw.word, '%')
-	WHERE nw.user_id = ? AND nw.livestream_id = ?;
-	`
-
-	if err := tx.GetContext(ctx, &hitSpam, query, req.Comment, livestreamModel.UserID, livestreamModel.ID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get hitspam: "+err.Error())
+	var ngWords []*NGWord
+	if err := tx.SelectContext(ctx, &ngWords, "SELECT * FROM ng_words WHERE livestream_id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 	}
 
-	if hitSpam >= 1 {
+	var words string
+	for _, ngWord := range ngWords {
+		words += ngWord.Word + "|"
+	}
+
+	if strings.Contains(words, req.Comment) {
 		return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
 	}
 
