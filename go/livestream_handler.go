@@ -543,6 +543,10 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 }
 
 func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+	if len(livestreamModels) == 0 {
+		return []Livestream{}, nil
+	}
+
 	ownerIds := make([]int64, 0)
 	for i := range livestreamModels {
 		ownerIds = append(ownerIds, livestreamModels[i].UserID)
