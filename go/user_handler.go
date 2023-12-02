@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -142,14 +141,10 @@ var themeCache = InMemThemeCache{
 	Theme: make(map[int64]bool),
 }
 
-var mu sync.RWMutex
-
 func getIconHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	username := c.Param("username")
-
-	mu.RLock()
 
 	var user UserModel
 	if err := dbConn.GetContext(ctx, &user, "SELECT * FROM users WHERE name = ?", username); err != nil {
@@ -159,16 +154,12 @@ func getIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
-	mu.RUnlock()
-
 	iconHash := iconCache.Get(user.ID)
 
 	match, ok := c.Request().Header["If-None-Match"]
 	if ok && strings.Contains(match[0], iconHash) {
 		return c.NoContent(http.StatusNotModified)
 	}
-
-	mu.RLock()
 
 	var image []byte
 	if err := dbConn.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", user.ID); err != nil {
@@ -178,8 +169,6 @@ func getIconHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user icon: "+err.Error())
 		}
 	}
-
-	mu.RUnlock()
 
 	newIconHash := sha256.Sum256(image)
 	iconCache.Set(user.ID, fmt.Sprintf("%x", newIconHash))
@@ -250,8 +239,6 @@ func getMeHandler(c echo.Context) error {
 	// existence already checked
 	userID := sess.Values[defaultUserIDKey].(int64)
 
-	mu.RLock()
-
 	userModel := UserModel{}
 	err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", userID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -260,8 +247,6 @@ func getMeHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-
-	mu.RUnlock()
 
 	user, err := fillUserResponse(ctx, userModel)
 	if err != nil {
@@ -298,12 +283,10 @@ func registerHandler(c echo.Context) error {
 		HashedPassword: string(hashedPassword),
 	}
 
-	mu.Lock()
 	result, err := dbConn.NamedExecContext(ctx, "INSERT INTO users (name, display_name, description, password) VALUES(:name, :display_name, :description, :password)", userModel)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user: "+err.Error())
 	}
-	mu.Unlock()
 
 	userID, err := result.LastInsertId()
 	if err != nil {
@@ -338,8 +321,6 @@ func loginHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "failed to decode the request body as json")
 	}
 
-	mu.RLock()
-
 	userModel := UserModel{}
 	// usernameはUNIQUEなので、whereで一意に特定できる
 	err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE name = ?", req.Username)
@@ -349,8 +330,6 @@ func loginHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-
-	mu.RUnlock()
 
 	err = bcrypt.CompareHashAndPassword([]byte(userModel.HashedPassword), []byte(req.Password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
@@ -397,8 +376,6 @@ func getUserHandler(c echo.Context) error {
 
 	username := c.Param("username")
 
-	mu.RLock()
-
 	userModel := UserModel{}
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE name = ?", username); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -406,8 +383,6 @@ func getUserHandler(c echo.Context) error {
 		}
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-
-	mu.RUnlock()
 
 	iconHash := iconCache.Get(userModel.ID)
 
