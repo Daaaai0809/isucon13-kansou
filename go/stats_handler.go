@@ -97,21 +97,10 @@ func getUserStatisticsHandler(c echo.Context) error {
 	query := `
 	SELECT u.name AS username, IFNULL(r.reactions, 0) + IFNULL(l2.tips, 0) AS score
 	FROM users u
-	LEFT JOIN (
-		SELECT u.id, COUNT(*) AS reactions
-		FROM users u
-		INNER JOIN livestreams l ON l.user_id = u.id
-		INNER JOIN reactions r ON r.livestream_id = l.id
-		GROUP BY u.id
-	) r ON u.id = r.id
-	LEFT JOIN (
-		SELECT u.id, IFNULL(SUM(l2.tip), 0) AS tips
-		FROM users u
-		INNER JOIN livestreams l ON l.user_id = u.id
-		INNER JOIN livecomments l2 ON l2.livestream_id = l.id
-		GROUP BY u.id
-	) l2 ON u.id = l2.id
-	ORDER BY score DESC, u.id DESC
+	LEFT JOIN livestreams l ON l.user_id = u.id
+	LEFT JOIN reactions r ON r.livestream_id = l.id
+	LEFT JOIN tips l2 ON l2.livestream_id = l.id
+	GROUP BY u.id
 	`
 	if err := tx.SelectContext(ctx, &ranking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get ranking: "+err.Error())
@@ -205,33 +194,15 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	var ranking LivestreamRanking
-	var liveStremRanking []LivestreamRankingEntry
 	query := `
 	SELECT l.id AS livestream_id, IFNULL(r.reactions, 0) + IFNULL(l2.tips, 0) AS score
 	FROM livestreams l
-	LEFT JOIN (
-		SELECT l.id, COUNT(*) AS reactions
-		FROM livestreams l
-		INNER JOIN reactions r ON l.id = r.livestream_id
-		GROUP BY l.id
-	) r ON l.id = r.id
-	LEFT JOIN (
-		SELECT l.id, IFNULL(SUM(l2.tip), 0) AS tips
-		FROM livestreams l
-		INNER JOIN livecomments l2 ON l.id = l2.livestream_id
-		GROUP BY l.id
-	) l2 ON l.id = l2.id
-	ORDER BY score DESC, l.id DESC
+	LEFT JOIN reactions r ON r.livestream_id = l.id
+	LEFT JOIN tips l2 ON l2.livestream_id = l.id
+	GROUP BY l.id
 	`
-	if err := tx.SelectContext(ctx, &liveStremRanking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.SelectContext(ctx, &ranking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get ranking: "+err.Error())
-	}
-
-	for _, entry := range liveStremRanking {
-		ranking = append(ranking, LivestreamRankingEntry{
-			LivestreamID: entry.LivestreamID,
-			Score:        entry.Score,
-		})
 	}
 
 	sort.Sort(ranking)
