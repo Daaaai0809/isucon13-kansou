@@ -2,7 +2,6 @@
 *.pprof
 .env
 go/isupuipe
-img/
 node/
 perl/
 php/
