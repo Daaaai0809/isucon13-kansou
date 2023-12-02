@@ -116,9 +116,9 @@ func getLivecommentsHandler(c echo.Context) error {
 			u2.id AS stream_owner_id, u2.name AS stream_owner_name, u2.display_name AS stream_owner_display_name, u2.description AS stream_owner_description,
 			t.id AS tag_id, t.name AS tag_name
 		FROM livecomments AS lc
-		LEFT JOIN users AS u ON lc.user_id = u.id
-		LEFT JOIN livestreams AS l ON lc.livestream_id = l.id
-		LEFT JOIN users AS u2 ON l.user_id = u2.id
+		INNER JOIN users AS u ON lc.user_id = u.id
+		INNER JOIN livestreams AS l ON lc.livestream_id = l.id
+		INNER JOIN users AS u2 ON l.user_id = u2.id
 		LEFT JOIN livestream_tags AS lt ON l.id = lt.livestream_id
 		LEFT JOIN tags AS t ON lt.tag_id = t.id
 		WHERE lc.livestream_id = ?
@@ -139,7 +139,7 @@ func getLivecommentsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, err)
 	}
 
-	livecomments, err := fillLivecommentResponses(ctx, tx, livecommentResponse)
+	livecomments, err := fillLivecommentResponses(ctx, livecommentResponse)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomments: "+err.Error())
 	}
@@ -448,7 +448,7 @@ func moderateHandler(c echo.Context) error {
 	})
 }
 
-func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentResponse LivecommentResponse) ([]Livecomment, error) {
+func fillLivecommentResponses(ctx context.Context, liveCommentResponse LivecommentResponse) ([]Livecomment, error) {
 	livecomments := make([]Livecomment, 0)
 
 	var tags map[int64][]Tag = make(map[int64][]Tag)
@@ -470,12 +470,12 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentRespo
 		}
 	}
 
-	for i := range liveCommentResponse {
+	for _, lcr := range liveCommentResponse {
 		commentOwnerModel := UserModel{
-			ID:      		liveCommentResponse[i].CommentOwnerID,
-			Name:    		liveCommentResponse[i].CommentOwnerName,
-			DisplayName: 	liveCommentResponse[i].CommentOwnerName,
-			Description: 	liveCommentResponse[i].CommentOwnerDesc,
+			ID:      		lcr.CommentOwnerID,
+			Name:    		lcr.CommentOwnerName,
+			DisplayName: 	lcr.CommentOwnerName,
+			Description: 	lcr.CommentOwnerDesc,
 		}
 
 		commentOwner, err := fillUserResponse(ctx, commentOwnerModel)
@@ -484,10 +484,10 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentRespo
 		}
 
 		streamOwnerModel := UserModel{
-			ID:      		liveCommentResponse[i].StreamOwnerID,
-			Name:    		liveCommentResponse[i].StreamOwnerName,
-			DisplayName: 	liveCommentResponse[i].StreamOwnerDisplay,
-			Description: 	liveCommentResponse[i].StreamOwnerDesc,
+			ID:      		lcr.StreamOwnerID,
+			Name:    		lcr.StreamOwnerName,
+			DisplayName: 	lcr.StreamOwnerDisplay,
+			Description: 	lcr.StreamOwnerDesc,
 		}
 
 		streamOwner, err := fillUserResponse(ctx, streamOwnerModel)
@@ -496,24 +496,24 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, liveCommentRespo
 		}
 
 		livestream := Livestream{
-			ID:          	liveCommentResponse[i].LivestreamID,
-			Title:       	liveCommentResponse[i].LivestreamTitle,
-			Description: 	liveCommentResponse[i].LivestreamDescription,
-			PlaylistUrl: 	liveCommentResponse[i].LivestreamPlaylistURL,
-			ThumbnailUrl: 	liveCommentResponse[i].LivestreamThumbnailURL,
-			StartAt:     	liveCommentResponse[i].LivestreamStartAt,
-			EndAt:       	liveCommentResponse[i].LivestreamEndAt,
+			ID:          	lcr.LivestreamID,
+			Title:       	lcr.LivestreamTitle,
+			Description: 	lcr.LivestreamDescription,
+			PlaylistUrl: 	lcr.LivestreamPlaylistURL,
+			ThumbnailUrl: 	lcr.LivestreamThumbnailURL,
+			StartAt:     	lcr.LivestreamStartAt,
+			EndAt:       	lcr.LivestreamEndAt,
 			Owner:       	streamOwner,
-			Tags:         	tags[liveCommentResponse[i].LivestreamID],
+			Tags:         	tags[lcr.LivestreamID],
 		}
 		
 		c := Livecomment{
-			ID:         liveCommentResponse[i].LivecommentID,
+			ID:         lcr.LivecommentID,
 			User:       commentOwner,
 			Livestream: livestream,
-			Comment:    liveCommentResponse[i].LivecommentComment,
-			Tip:        liveCommentResponse[i].LivecommentTip,
-			CreatedAt:  liveCommentResponse[i].LivecommentCreatedAt,
+			Comment:    lcr.LivecommentComment,
+			Tip:        lcr.LivecommentTip,
+			CreatedAt:  lcr.LivecommentCreatedAt,
 		}
 
 		livecomments = append(livecomments, c)
