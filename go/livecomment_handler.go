@@ -66,10 +66,10 @@ type NGWord struct {
 }
 
 type LivecommentResponse []*struct {
-	User    		UserModel `db:"comment_owner"`
-	Livecomment 	LivecommentModel `db:"livecomment"`
-	LiveStream 		LivestreamModel `db:"livestream"`
-	LiveStreamOwner UserModel `db:"stream_owner"`
+	User    		*UserModel `db:"comment_owner"`
+	Livecomment 	*LivecommentModel `db:"livecomment"`
+	LiveStream 		*LivestreamModel `db:"livestream"`
+	LiveStreamOwner *UserModel `db:"stream_owner"`
 	LiveStreamTags 	[]*TagModel `db:"livestream_tags"`
 }
 
@@ -97,10 +97,10 @@ func getLivecommentsHandler(c echo.Context) error {
 		WHERE lc.livestream_id = ? 
 		ORDER BY created_at DESC`
 	joins := `
-		LEFT JOIN users u ON lc.user_id = u.id
-		LEFT JOIN livestreams AS ls ON lc.livestream_id = ls.id
-		LEFT JOIN users AS u2 ON livestreams.user_id = users.id
-		LEFT JOIN tags AS t ON ls.id = t.livestream_id
+		INNER JOIN users u ON lc.user_id = u.id
+		INNER JOIN livestreams AS ls ON lc.livestream_id = ls.id
+		INNER JOIN users AS u2 ON livestreams.user_id = users.id
+		INNER JOIN tags AS t ON ls.id = t.livestream_id
 	`
 	if c.QueryParam("limit") != "" {
 		limit, err := strconv.Atoi(c.QueryParam("limit"))
