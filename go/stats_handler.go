@@ -148,6 +148,35 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	sort.Sort(ranking)
 
+	var rank int64 = 1
+	for i := len(ranking) - 1; i >= 0; i-- {
+		entry := ranking[i]
+		if entry.Username == username {
+			break
+		}
+		rank++
+	}
+
+	// リアクション数
+	var totalReactions int64
+	query = `SELECT COUNT(*) FROM users u 
+    INNER JOIN livestreams l ON l.user_id = u.id 
+    INNER JOIN reactions r ON r.livestream_id = l.id
+    WHERE u.name = ?
+	`
+	if err := tx.GetContext(ctx, &totalReactions, query, username); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count total reactions: "+err.Error())
+	}
+
+	// ライブコメント数、チップ合計
+	var totalLivecomments int64
+	var totalTip int64
+	var livestreams []*LivestreamModel
+	if err := tx.SelectContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+	}
+
+
 	// 合計視聴者数
 	var viewersCount int64
 	for _, livestream := range livestreams {
