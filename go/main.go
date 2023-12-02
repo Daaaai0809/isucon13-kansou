@@ -128,7 +128,7 @@ func initializeHandler(c echo.Context) error {
 
 	for _, q := range query {
 		if _, err := dbConn.Exec(q); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+			continue;
 		}
 	}
 
