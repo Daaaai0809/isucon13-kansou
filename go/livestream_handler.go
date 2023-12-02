@@ -512,7 +512,7 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	// 	}
 	// }
 
-	var tags []Tag
+	tags := make([]Tag, 0)
 	query := `
 		SELECT t.id, t.name
 		FROM tags t
