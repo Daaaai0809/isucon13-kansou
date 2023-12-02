@@ -127,8 +127,10 @@ func initializeHandler(c echo.Context) error {
 		"CREATE INDEX `idx_user_id_on_livecomments` ON `livecomments` (`user_id`);",
 		"CREATE INDEX `idx_livestream_id_on_reactions` ON `reactions` (`livestream_id`);",
 		"CREATE INDEX `idx_user_id_on_users` ON `users` (`id`);",
-		"CREATE INDEX `idx_start_at_and_end_at_on_reservation_slots` ON `reservation_slots` (`start_at`, `end_at`);",
+		"CREATE INDEX `idx_start_at_and_on_reservation_slots` ON `reservation_slots` (`start_at`);",
 		"CREATE INDEX `idx_user_id_and_livestream_id_on_ngwords` ON `ng_words` (`user_id`, `livestream_id`);",
+		"CREATE INDEX `idx_user_id_on_users` ON `users` (`id`);",
+		"CREATE INDEX `idx_livestream_id_on_livestreams` ON `livestreams` (`id`);",
 	}
 
 	for _, q := range query {
