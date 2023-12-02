@@ -303,7 +303,7 @@ func registerHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user: "+err.Error())
 	}
-	mu.RUnlock()
+	mu.Unlock()
 
 	userID, err := result.LastInsertId()
 	if err != nil {
