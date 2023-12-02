@@ -145,6 +145,9 @@ func getIconHandler(c echo.Context) error {
 		}
 	}
 
+	newIconHash := sha256.Sum256(image)
+	iconCache.Set(user.ID, fmt.Sprintf("%x", newIconHash))
+
 	return c.Blob(http.StatusOK, "image/jpeg", image)
 }
 
