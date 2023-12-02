@@ -92,35 +92,6 @@ func getUserStatisticsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get users: "+err.Error())
 	}
 
-	// var ranking UserRanking
-	// for _, user := range users {
-	// 	var reactions int64
-	// 	query := `
-	// 	SELECT COUNT(*) FROM users u
-	// 	INNER JOIN livestreams l ON l.user_id = u.id
-	// 	INNER JOIN reactions r ON r.livestream_id = l.id
-	// 	WHERE u.id = ?`
-	// 	if err := tx.GetContext(ctx, &reactions, query, user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count reactions: "+err.Error())
-	// 	}
-
-	// 	var tips int64
-	// 	query = `
-	// 	SELECT IFNULL(SUM(l2.tip), 0) FROM users u
-	// 	INNER JOIN livestreams l ON l.user_id = u.id	
-	// 	INNER JOIN livecomments l2 ON l2.livestream_id = l.id
-	// 	WHERE u.id = ?`
-	// 	if err := tx.GetContext(ctx, &tips, query, user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to count tips: "+err.Error())
-	// 	}
-
-	// 	score := reactions + tips
-	// 	ranking = append(ranking, UserRankingEntry{
-	// 		Username: user.Name,
-	// 		Score:    score,
-	// 	})
-	// }
-
 	// for使わずにN+1を解消する
 	var ranking UserRanking
 	query := `
@@ -234,6 +205,7 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	var ranking LivestreamRanking
+	var liveStremRanking []LivestreamRankingEntry
 	query := `
 	SELECT l.id AS livestream_id, IFNULL(r.reactions, 0) + IFNULL(l2.tips, 0) AS score
 	FROM livestreams l
@@ -251,8 +223,15 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	) l2 ON l.id = l2.id
 	ORDER BY score DESC, l.id DESC
 	`
-	if err := tx.SelectContext(ctx, &ranking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.SelectContext(ctx, &liveStremRanking, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get ranking: "+err.Error())
+	}
+
+	for _, entry := range liveStremRanking {
+		ranking = append(ranking, LivestreamRankingEntry{
+			LivestreamID: entry.LivestreamID,
+			Score:        entry.Score,
+		})
 	}
 
 	sort.Sort(ranking)
