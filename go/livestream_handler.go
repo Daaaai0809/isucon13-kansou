@@ -549,7 +549,11 @@ func fillLivestreamResponseBulk(ctx context.Context, tx *sqlx.Tx, livestreamMode
 	}
 
 	ownerModels := make([]*UserModel, len(livestreamModels))
-	if err := tx.SelectContext(ctx, &ownerModels, "SELECT * FROM users WHERE id IN (?)", ownerIds); err != nil {
+	que, par, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", ownerIds)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &ownerModels, que, par...); err != nil {
 		return nil, err
 	}
 
