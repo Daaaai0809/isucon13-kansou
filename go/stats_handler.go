@@ -103,8 +103,8 @@ func getUserStatisticsHandler(c echo.Context) error {
 	GROUP BY u.id
 	`
 	var entries []*struct {
-		Username string
-		Score    int64
+		Username string `db:"username"`
+		Score    int64 `db:"score"`
 	}
 
 	if err := tx.SelectContext(ctx, &entries, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -215,8 +215,8 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 	`
 
 	var entries []*struct {
-		LivestreamID int64
-		Score        int64
+		LivestreamID int64 `db:"livestream_id"`
+		Score        int64 `db:"score"`
 	}
 
 	if err := tx.SelectContext(ctx, &entries, query); err != nil && !errors.Is(err, sql.ErrNoRows) {
