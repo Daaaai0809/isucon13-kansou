@@ -429,7 +429,7 @@ func moderateHandler(c echo.Context) error {
 	FROM
 	(SELECT ? AS text) AS texts
 	INNER JOIN
-	(SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
+	(SELECT CONCAT('%', (?), '%')	AS pattern) AS patterns
 	ON texts.text LIKE patterns.pattern) >= 1;
 	`
 
