@@ -123,7 +123,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 
 	var counts []int
 	query := `
-		SELECT slot FROM reservation_slots as rs
+		SELECT rs2.slot FROM reservation_slots as rs
 		INNER JOIN reservation_slots as rs2 ON rs.start_at = rs2.start_at AND rs.end_at = rs2.end_at
 		WHERE rs.start_at >= ? AND rs.end_at <= ?
 	`
