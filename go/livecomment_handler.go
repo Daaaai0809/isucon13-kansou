@@ -442,6 +442,11 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 		return []Livecomment{}, err
 	}
 
+	commentOwnerMap := map[int64]User{}
+	for _, user := range commentOwner {
+		commentOwnerMap[user.ID] = user
+	}
+
 	livestreamIds := []int64{}
 	for _, livecommentModel := range livecommentModels {
 		livestreamIds = append(livestreamIds, livecommentModel.LivestreamID)
@@ -457,17 +462,22 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 		return []Livecomment{}, err
 	}
 
-	livecomments := make([]Livecomment, len(livecommentModels))
-	for i := range livecommentModels {
+	livestreamMap := map[int64]Livestream{}
+	for _, livestream := range livestreams {
+		livestreamMap[livestream.ID] = livestream
+	}
+
+	livecomments := []Livecomment{}
+	for _, livecommentModel := range livecommentModels {
 		livecomment := Livecomment{
-			ID:         livecommentModels[i].ID,
-			User:       commentOwner[i],
-			Livestream: livestreams[i],
-			Comment:    livecommentModels[i].Comment,
-			Tip:        livecommentModels[i].Tip,
-			CreatedAt:  livecommentModels[i].CreatedAt,
+			ID:         livecommentModel.ID,
+			User:       commentOwnerMap[livecommentModel.UserID],
+			Livestream: livestreamMap[livecommentModel.LivestreamID],
+			Comment:    livecommentModel.Comment,
+			Tip:        livecommentModel.Tip,
+			CreatedAt:  livecommentModel.CreatedAt,
 		}
-		livecomments[i] = livecomment
+		livecomments = append(livecomments, livecomment)
 	}
 
 	return livecomments, nil
