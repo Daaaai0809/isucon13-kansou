@@ -207,10 +207,10 @@ func getLivestreamStatisticsHandler(c echo.Context) error {
 
 	var ranking LivestreamRanking
 	query := `
-	SELECT l.id AS livestream_id, IFNULL(r.reactions, 0) + IFNULL(l2.tips, 0) AS score
+	SELECT l.id AS livestream_id, IFNULL(r.reactions, 0) + IFNULL(l2.tip, 0) AS score
 	FROM livestreams l
 	LEFT JOIN reactions r ON r.livestream_id = l.id
-	LEFT JOIN tips l2 ON l2.livestream_id = l.id
+	LEFT JOIN livecomments l2 ON l2.livestream_id = l.id
 	GROUP BY l.id
 	`
 
