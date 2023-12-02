@@ -98,9 +98,9 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	db.Preparex("SET SESSION sql_mode='TRADITIONAL,NO_AUTO_VALUE_ON_ZERO,ONLY_FULL_GROUP_BY'")
+	db.Preparex("")
 
-	db.SetMaxOpenConns(100)
+	db.SetMaxOpenConns(30)
 
 	if err := db.Ping(); err != nil {
 		return nil, err
